@@ -66,6 +66,12 @@ public class Mario : MonoBehaviour {
     private float slideTime = 0f;
     private bool bIsCrouching = false;
     private bool bIsSliding = false;
+
+    [SerializeField]
+    private float vineSwingForce = 1f;
+    private Transform handPos;
+    private VinePiece holdingVine = null;
+    private bool bOnVine = false;
     
     private bool bIsDead = false;
     public bool IsDead() { return bIsDead; }
@@ -85,6 +91,8 @@ public class Mario : MonoBehaviour {
         groundPos = transform.Find("GroundPos");
         wallPos = transform.Find("WallPos");
         nearWallPos = transform.Find("NearWallPos");
+        handPos = transform.Find("HandPos");
+        BoxCollider2D box = handPos.gameObject.GetComponent<BoxCollider2D>();
 
         halfJumpForce = jumpForce / 2;
         halfLongJumpForce = longJumpForce / 2;
@@ -216,10 +224,15 @@ public class Mario : MonoBehaviour {
         if (!bIsDead)
         {
             HandleJump(Input.GetButton("Jump_" + playerNum));
-            if (!bOnWall && !bIsCrouching)
-                HandleMovementAlive(Input.GetAxis("Horizontal_" + playerNum));
+            float h = Input.GetAxis("Horizontal_" + playerNum);
+            float v = Input.GetAxis("Vertical_" + playerNum);
+
+            if (bOnVine)
+                HandleMovementVine(h, v);
             else if (bOnWall)
-                HandleMovementWall(Input.GetAxis("Horizontal_" + playerNum));
+                HandleMovementWall(h);
+            else if (!bIsCrouching)
+                HandleMovementAlive(h);
         }
         else
             HandleMovementDead();
@@ -231,19 +244,18 @@ public class Mario : MonoBehaviour {
         {
             if (_isJumping
                 && ((bOnGround || (!bOnGround && jumps < maxJumps))
-                    || bOnWall || bNearWall))
+                    || bOnWall || bNearWall || bOnVine))
             {
                 animator.Play("Jump");
 
                 if (jumps > 0)
                     rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
 
-                if (!bOnWall && !bNearWall)
+                if (bOnVine)
                 {
-                    rigidbody2D.AddForce(new Vector2(0f, jumpForce));
-                    bOnGround = false;
+                    // Jump off vine
                 }
-                else
+                else if (bOnWall || bNearWall)
                 {
                     float dir = transform.localScale.x;
 
@@ -259,7 +271,12 @@ public class Mario : MonoBehaviour {
                     rigidbody2D.gravityScale = gravityScale;
 
                     jumps = maxJumps;
+                }else
+                {
+                    rigidbody2D.AddForce(new Vector2(0f, jumpForce));
+                    bOnGround = false;
                 }
+                
 
                 bJumpHeld = true;
                 jumpHeldTime = Time.time;
@@ -300,6 +317,32 @@ public class Mario : MonoBehaviour {
             AddHorizontalDrag(airDrag);
 
         LimitSpeed();
+    }
+
+    protected void HandleMovementVine(float _h, float _v)
+    {
+        if (holdingVine == null)
+        {
+            bOnVine = false;
+            HandleMovementAlive(_h);
+            return;
+        }
+
+        if (_h != 0)
+        {
+            _h = _h > 0 ? 1 : -1;
+
+            Vector2 dir = (holdingVine.GetAnchor().transform.position - holdingVine.transform.position).normalized;
+
+            Quaternion q = Quaternion.Euler(0, 0, 90 * -_h);
+            dir = q * dir;
+
+            if (dir.y > 0)
+                dir.y *= -1f;
+
+            holdingVine.rigidbody2D.AddForce(vineSwingForce * dir);
+            Debug.DrawLine(transform.position, transform.position + (Vector3)(dir * 500f), Color.magenta);
+        }
     }
 
     private void AddHorizontalDrag(float _drag)
@@ -395,5 +438,25 @@ public class Mario : MonoBehaviour {
 
         DeathBubble db = gameObject.GetComponentInChildren<DeathBubble>();
         Destroy(db.gameObject);
+    }
+
+    public void VineHit(VinePiece _vine)
+    {
+        if (bOnVine || holdingVine != null)
+            return;
+
+        bOnVine = true;
+        holdingVine = _vine;
+        holdingVine.rigidbody2D.mass += rigidbody2D.mass;
+
+        handPos.collider2D.enabled = false;
+        rigidbody2D.isKinematic = true;
+        transform.position = _vine.transform.position - handPos.localPosition;
+        transform.parent = _vine.transform;
+
+        holdingVine.joint.connectedBody = holdingVine.GetAnchor().rigidbody2D;
+        holdingVine.joint.distance = Vector2.Distance(holdingVine.transform.position, holdingVine.GetAnchor().transform.position);
+
+        holdingVine.connectedTo.EnableReverseJoint();
     }
 }
