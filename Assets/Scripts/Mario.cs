@@ -156,6 +156,9 @@ public class Mario : MonoBehaviour {
         }
         else if (!bOnGround && wasOnGround)
         {
+            if (transform.parent.gameObject.GetComponent<MovingPlatform>() != null)
+                ;
+
             transform.parent = null;
    
             if (!bOnWall)
