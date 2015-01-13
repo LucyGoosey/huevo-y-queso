@@ -124,12 +124,23 @@ public class Mario : MonoBehaviour {
     private void CheckGround()
     {
         bool wasOnGround = bOnGround;
-        bOnGround = Physics2D.Linecast(transform.position, groundPosMid.position, 1 << LayerMask.NameToLayer("Ground"))
-                    || Physics2D.Linecast(transform.position, groundPosLeft.position, 1 << LayerMask.NameToLayer("Ground"))
-                    || Physics2D.Linecast(transform.position, groundPosRight.position, 1 << LayerMask.NameToLayer("Ground"));
+
+        Collider2D midGround, leftGround, rightGround;
+        midGround = Physics2D.Linecast(transform.position, groundPosMid.position, 1 << LayerMask.NameToLayer("Ground")).collider;
+        leftGround = Physics2D.Linecast(transform.position, groundPosLeft.position, 1 << LayerMask.NameToLayer("Ground")).collider;
+        rightGround = Physics2D.Linecast(transform.position, groundPosRight.position, 1 << LayerMask.NameToLayer("Ground")).collider;
+
+        bOnGround = midGround != null || leftGround != null || rightGround != null;
 
         if (bOnGround && !wasOnGround)
         {
+            if (midGround != null)
+                transform.parent = midGround.transform;
+            else if (leftGround != null)
+                transform.parent = leftGround.transform;
+            else
+                transform.parent = rightGround.transform;
+
             jumps = 0;
 
             wallHangTime = 0f;
@@ -143,8 +154,13 @@ public class Mario : MonoBehaviour {
 
             animator.Play("Still");
         }
-        else if (!bOnGround && wasOnGround && !bOnWall)
-            animator.Play("Jump");
+        else if (!bOnGround && wasOnGround)
+        {
+            transform.parent = null;
+   
+            if (!bOnWall)
+                animator.Play("Jump");
+        }
     }
 
     private void CheckWall()
@@ -153,8 +169,17 @@ public class Mario : MonoBehaviour {
         bOnWall = Physics2D.Linecast(transform.position, wallPos.position, 1 << LayerMask.NameToLayer("Ground"));
         bNearWall = bOnWall || Physics2D.Linecast(transform.position, nearWallPos.position, 1 << LayerMask.NameToLayer("Ground"));
 
-        if (bOnWall && bHanging)
-            wallHangTime += Time.fixedDeltaTime;
+        if (bOnWall && !wasOnWall)
+            transform.parent = Physics2D.Linecast(transform.position, wallPos.position, 1 << LayerMask.NameToLayer("Ground")).collider.transform;
+        else 
+        if (!bOnWall && wasOnWall)
+        {
+            transform.parent = null;
+            animator.Play("Jump");
+        }
+
+        if(bOnWall && bHanging)
+            wallHangTime += Time.deltaTime;
     }
 
     private void HandleGlide(bool _shouldGlide)
@@ -271,10 +296,7 @@ public class Mario : MonoBehaviour {
                     rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
 
                 if (!bOnWall && !bNearWall)
-                {
                     rigidbody2D.AddForce(new Vector2(0f, jumpForce));
-                    bOnGround = false;
-                }
                 else
                 {
                     float dir = transform.localScale.x;
@@ -319,7 +341,8 @@ public class Mario : MonoBehaviour {
 
             _h = _h < 0 ? -1 : 1;
 
-            transform.localScale = new Vector3(_h, transform.localScale.y, transform.localScale.z);
+            if(Mathf.Sign(transform.localScale.x) != _h)
+                transform.localScale = new Vector3(transform.localScale.x * -1f, transform.localScale.y, transform.localScale.z);
 
             if (_h * rigidbody2D.velocity.x < maxSpeed.x)
                 rigidbody2D.AddForce(Vector2.right * (bOnGround ? accelSpeed * groundDragCof : airAccelSpeed) * _h);
