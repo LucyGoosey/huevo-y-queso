@@ -1,0 +1,31 @@
+# Temporary file ignores
+/Library
+/Library/*
+/obj
+/objects
+/refs
+/Temp
+*.csproj
+*.pidb
+*.sln
+*.userprefs
+*.suo
+
+# Build ignores
+/*_Data
+*.exe
+
+# Asset Ignores
+*.png
+*.psd
+*.tga
+*.tif
+*.fbx
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.obj
+*.db
+*.mtl
+*.max
