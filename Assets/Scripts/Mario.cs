@@ -66,12 +66,15 @@ public class Mario : MonoBehaviour {
     private float slideTime = 0f;
     private bool bIsCrouching = false;
     private bool bIsSliding = false;
+    public bool bFloatWhileSliding = false;
     
     private bool bIsDead = false;
     public bool IsDead() { return bIsDead; }
 
-    private float halfJumpForce;
-    private float halfLongJumpForce;
+    [SerializeField]
+    private Vector2 wallKickForce = new Vector2(300f, 250f);
+    [SerializeField]
+    private float longWallKickForce = 5f;
 
     [SerializeField]
     protected float deadAccelSpeed = 40f;
@@ -85,9 +88,6 @@ public class Mario : MonoBehaviour {
         groundPos = transform.Find("GroundPos");
         wallPos = transform.Find("WallPos");
         nearWallPos = transform.Find("NearWallPos");
-
-        halfJumpForce = jumpForce / 2;
-        halfLongJumpForce = longJumpForce / 2;
 	}
 
     #region Update
@@ -178,7 +178,11 @@ public class Mario : MonoBehaviour {
         {
             bIsCrouching = true;
             if (!bIsSliding && slideTime < maxSlideTime)
+            {
                 bIsSliding = true;
+                if(bFloatWhileSliding)
+                    rigidbody2D.gravityScale = 0f;
+            }
         }
 
         if ((bIsCrouching && !_shouldCrouch)
@@ -186,6 +190,8 @@ public class Mario : MonoBehaviour {
         {
             bIsSliding = false;
             slideTime = 0f;
+            if (bFloatWhileSliding)
+                rigidbody2D.gravityScale = 1f;
         }
     }
 
@@ -250,7 +256,7 @@ public class Mario : MonoBehaviour {
                     if (bOnWall)
                         dir *= -1f;
 
-                    rigidbody2D.AddForce(new Vector2(halfJumpForce * dir, halfJumpForce));
+                    rigidbody2D.AddForce(new Vector2(wallKickForce.x * dir, wallKickForce.y));
 
                     bOnWall = false;
                     bHanging = false;
@@ -269,7 +275,7 @@ public class Mario : MonoBehaviour {
         }
         else
             if (_isJumping && Time.time - jumpHeldTime < longJumpTime && jumps == 1)
-                rigidbody2D.AddForce(new Vector2(0f, bJumpOffWall ? longJumpForce : halfLongJumpForce));
+                rigidbody2D.AddForce(new Vector2(0f, bJumpOffWall ? longJumpForce : longWallKickForce));
 
         if (!_isJumping)
         {
