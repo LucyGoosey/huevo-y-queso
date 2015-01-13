@@ -1,0 +1,20 @@
+Running		*
+Jumping		*
+Bubble Revive	*
+
+Attacking	*
+Long Jump	*
+Double Jump	*
+
+Sliding		*
+Gliding		*
+Wall Manoeuvres	*
+Vines
+
+Camera Controller
+
+Rails
+Tricks
+
+Water Hopping
+Shrinkers/Growers
