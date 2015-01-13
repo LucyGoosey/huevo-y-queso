@@ -29,8 +29,3 @@
 *.db
 *.mtl
 *.max
-
-# Unity Ignores
-*.mat
-*.controller
-*.anim

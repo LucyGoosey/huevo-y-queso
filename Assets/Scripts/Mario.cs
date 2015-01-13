@@ -18,9 +18,12 @@ public class Mario : MonoBehaviour {
     [SerializeField]
     protected float accelSpeed = 20f;
     [SerializeField]
-    protected float groundDrag = 5f;
+    protected float airAccelSpeed = 10f;
     [SerializeField]
-    protected float airDrag = 0f;
+    protected float groundDragMagic = 0.05f;
+    public float groundDragCof = 1f;
+    [SerializeField]
+    protected float airDragMagic = 0f;
     [SerializeField]
     protected float jumpForce = 500f;
     [SerializeField]
@@ -28,7 +31,9 @@ public class Mario : MonoBehaviour {
     [SerializeField]
     protected float bubblePopDistance = 4f;
 
-    private Transform groundPos;
+    private Transform groundPosMid;
+    private Transform groundPosLeft;
+    private Transform groundPosRight;
     private bool bOnGround = false;
     public bool IsGrounded() { return bOnGround; }
 
@@ -62,8 +67,11 @@ public class Mario : MonoBehaviour {
     [SerializeField]
     private float maxSlideTime = 1f;
     [SerializeField]
-    private float slideDrag = 2.5f;
+    protected float slideDragCof = 0.75f;
+    [SerializeField]
+    private float minSlideSpeed = 0.75f;
     private float slideTime = 0f;
+    private float slideVel = 0f;
     private bool bIsCrouching = false;
     private bool bIsSliding = false;
     public bool bFloatWhileSliding = false;
@@ -81,11 +89,16 @@ public class Mario : MonoBehaviour {
     [SerializeField]
     protected float deadMoveSpeed = 15f;
 
+    public float standStillSpeed = 0.01f;
+
 	protected void Start ()
     {
         animator = GetComponent<Animator>();
 
-        groundPos = transform.Find("GroundPos");
+        groundPosMid = transform.Find("GroundPos");
+        groundPosLeft = transform.Find("GroundPosLeft");
+        groundPosRight = transform.Find("GroundPosRight");
+
         wallPos = transform.Find("WallPos");
         nearWallPos = transform.Find("NearWallPos");
 	}
@@ -110,9 +123,12 @@ public class Mario : MonoBehaviour {
 
     private void CheckGround()
     {
-        bOnGround = Physics2D.Linecast(transform.position, groundPos.position, 1 << LayerMask.NameToLayer("Ground"));
+        bool wasOnGround = bOnGround;
+        bOnGround = Physics2D.Linecast(transform.position, groundPosMid.position, 1 << LayerMask.NameToLayer("Ground"))
+                    || Physics2D.Linecast(transform.position, groundPosLeft.position, 1 << LayerMask.NameToLayer("Ground"))
+                    || Physics2D.Linecast(transform.position, groundPosRight.position, 1 << LayerMask.NameToLayer("Ground"));
 
-        if (bOnGround)
+        if (bOnGround && !wasOnGround)
         {
             jumps = 0;
 
@@ -123,11 +139,12 @@ public class Mario : MonoBehaviour {
             glideTime = 0f;
             bIsGliding = false;
 
-            rigidbody2D.gravityScale = gravityScale;
+            rigidbody2D.gravityScale = 1f;
 
-            if (animator.GetCurrentAnimatorStateInfo(0).IsName("Jump"))
-                animator.Play("Still");
+            animator.Play("Still");
         }
+        else if (!bOnGround && wasOnGround && !bOnWall)
+            animator.Play("Jump");
     }
 
     private void CheckWall()
@@ -138,8 +155,6 @@ public class Mario : MonoBehaviour {
 
         if (bOnWall && bHanging)
             wallHangTime += Time.fixedDeltaTime;
-        if (!bOnWall && wasOnWall && !bOnGround)
-            animator.Play("Jump");
     }
 
     private void HandleGlide(bool _shouldGlide)
@@ -163,33 +178,41 @@ public class Mario : MonoBehaviour {
 
     protected void HandleCrouch(bool _shouldCrouch)
     {
-        if (_shouldCrouch)
-            animator.Play("Crouch");
-        if (bIsCrouching && !_shouldCrouch)
+        if (!bIsCrouching && _shouldCrouch)
         {
-            animator.Play("Still");
+            bIsCrouching = true;
+            animator.Play("Crouch");
+
+            if ((!bIsSliding && slideTime < maxSlideTime)
+                && Mathf.Abs(rigidbody2D.velocity.x) >= maxSpeed.x * minSlideSpeed)
+            {
+                bIsSliding = true;
+                slideVel = rigidbody2D.velocity.x;
+                if(bFloatWhileSliding)
+                    rigidbody2D.gravityScale = 0f;
+            }
+
+            if (!bIsSliding)
+                rigidbody2D.velocity = new Vector2(0, rigidbody2D.velocity.y);
+        }
+        else if (bIsCrouching && !_shouldCrouch)
+        {
             bIsCrouching = false;
+            bIsSliding = false;
+            slideTime = 0f;
+
+            if (bFloatWhileSliding)
+                rigidbody2D.gravityScale = 1f;
+
+            animator.Play("Still");
         }
 
         if (bIsCrouching)
             slideTime += Time.deltaTime;
 
-        if (!bIsCrouching && _shouldCrouch)
-        {
-            bIsCrouching = true;
-            if (!bIsSliding && slideTime < maxSlideTime)
-            {
-                bIsSliding = true;
-                if(bFloatWhileSliding)
-                    rigidbody2D.gravityScale = 0f;
-            }
-        }
-
-        if ((bIsCrouching && !_shouldCrouch)
-            || slideTime >= maxSlideTime)
+        if (slideTime >= maxSlideTime)
         {
             bIsSliding = false;
-            slideTime = 0f;
             if (bFloatWhileSliding)
                 rigidbody2D.gravityScale = 1f;
         }
@@ -222,10 +245,13 @@ public class Mario : MonoBehaviour {
         if (!bIsDead)
         {
             HandleJump(Input.GetButton("Jump_" + playerNum));
+
             if (!bOnWall && !bIsCrouching)
                 HandleMovementAlive(Input.GetAxis("Horizontal_" + playerNum));
             else if (bOnWall)
                 HandleMovementWall(Input.GetAxis("Horizontal_" + playerNum));
+            else if (bIsSliding && bOnGround)
+                AddHorizontalDrag(groundDragMagic, (slideDragCof * (slideTime / maxSlideTime)) * groundDragCof);
         }
         else
             HandleMovementDead();
@@ -286,9 +312,6 @@ public class Mario : MonoBehaviour {
 
     protected void HandleMovementAlive(float _h)
     {
-        if (bIsSliding)
-            AddHorizontalDrag(slideDrag);
-
         if (_h != 0)
         {
             if (bOnGround)
@@ -299,39 +322,14 @@ public class Mario : MonoBehaviour {
             transform.localScale = new Vector3(_h, transform.localScale.y, transform.localScale.z);
 
             if (_h * rigidbody2D.velocity.x < maxSpeed.x)
-                rigidbody2D.AddForce(Vector2.right * (bOnGround ? accelSpeed : accelSpeed / 2) * _h);
-        }else if (bOnGround && !bIsSliding)
-            AddHorizontalDrag(groundDrag);
-        if (!bOnGround)
-            AddHorizontalDrag(airDrag);
+                rigidbody2D.AddForce(Vector2.right * (bOnGround ? accelSpeed * groundDragCof : airAccelSpeed) * _h);
+        }
+        else if (bOnGround)
+            AddHorizontalDrag(groundDragMagic, groundDragCof);
+        else
+            AddHorizontalDrag(airDragMagic);
 
         LimitSpeed();
-    }
-
-    private void AddHorizontalDrag(float _drag)
-    {
-        if (rigidbody2D.velocity.x != 0)
-        {
-            float oldDir = Mathf.Sign(rigidbody2D.velocity.x);
-            rigidbody2D.AddForce(Vector2.right * -oldDir * _drag);
-
-            if ((oldDir > 0 && rigidbody2D.velocity.x < 0)
-                || (oldDir < 0 && rigidbody2D.velocity.x > 0))
-                rigidbody2D.velocity = new Vector2(0, rigidbody2D.velocity.y);
-        }
-    }
-
-    private void LimitSpeed()
-    {
-        float xSpeed = rigidbody2D.velocity.x;
-        float ySpeed = rigidbody2D.velocity.y;
-
-        if (Mathf.Abs(xSpeed) > maxSpeed.x)
-            xSpeed = maxSpeed.x * Mathf.Sign(xSpeed);
-        if (Mathf.Abs(ySpeed) > maxSpeed.y)
-            ySpeed = maxSpeed.y * Mathf.Sign(ySpeed);
-
-        rigidbody2D.velocity = new Vector2(xSpeed, ySpeed);
     }
 
     protected void HandleMovementWall(float _h)
@@ -369,6 +367,40 @@ public class Mario : MonoBehaviour {
 
         if (rigidbody2D.velocity.magnitude > deadMoveSpeed)
             rigidbody2D.velocity = rigidbody2D.velocity.normalized * deadMoveSpeed;
+    }
+
+    private void AddHorizontalDrag(float _dragMagic, float _dragCof = 1f)
+    {
+        if (Mathf.Abs(rigidbody2D.velocity.x) > standStillSpeed)
+        {
+            float vX = rigidbody2D.velocity.x;
+            // Magic be here
+            vX -= vX * (_dragMagic * Mathf.Pow(_dragCof, 2));
+
+            if(Mathf.Sign(vX) != Mathf.Sign(rigidbody2D.velocity.x))
+                rigidbody2D.velocity = new Vector2(0, rigidbody2D.velocity.y);
+            else
+                rigidbody2D.velocity = new Vector2(vX, rigidbody2D.velocity.y);
+        }
+        else
+        {
+            rigidbody2D.velocity = new Vector2(0, rigidbody2D.velocity.y);
+            if(bOnGround)
+                animator.Play("Still");
+        }
+    }
+
+    private void LimitSpeed()
+    {
+        float xSpeed = rigidbody2D.velocity.x;
+        float ySpeed = rigidbody2D.velocity.y;
+
+        if (Mathf.Abs(xSpeed) > maxSpeed.x)
+            xSpeed = maxSpeed.x * Mathf.Sign(xSpeed);
+        if (Mathf.Abs(ySpeed) > maxSpeed.y)
+            ySpeed = maxSpeed.y * Mathf.Sign(ySpeed);
+
+        rigidbody2D.velocity = new Vector2(xSpeed, ySpeed);
     }
 
     #endregion
