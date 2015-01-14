@@ -62,6 +62,7 @@ public class Mario : MonoBehaviour {
     private int maxJumps = 2;
     private int jumps = 0;
     public bool bExtraJumpStopsFall = true;
+    public bool bJumpsStopY = true;
 
     [SerializeField]
     private float maxGlideTime = 2f;
@@ -121,6 +122,200 @@ public class Mario : MonoBehaviour {
         wallPos = transform.Find("WallPos");
         nearWallPos = transform.Find("NearWallPos");
 	}
+
+    #region FixedUpdate
+
+    protected void FixedUpdate()
+    {
+        if (!bIsDead && !bUnderDirectControl)
+        {
+            HandleJump(Input.GetButton("Jump_" + playerNum));
+
+            if (!bOnWall && !bIsCrouching)
+                HandleMovementAlive(Input.GetAxis("Horizontal_" + playerNum));
+            else if (bOnWall)
+                HandleMovementWall(Input.GetAxis("Horizontal_" + playerNum));
+            else if (bIsSliding && bOnGround)
+                AddHorizontalDrag(groundDragMagic, (slideDragCof * (slideTime / maxSlideTime)) * groundDragCof);
+
+            HandlePreciseJump(Input.GetButton("Precise_" + playerNum));
+        }
+        else
+            HandleMovementDead();
+    }
+
+    internal protected void HandleJump(bool _isJumping)
+    {
+        if (!bJumpHeld)
+        {
+            if (_isJumping
+                && ((bOnGround || (!bOnGround && jumps < maxJumps))
+                    || bOnWall || bNearWall))
+            {
+                animator.Play("Jump");
+
+                if ((jumps > 0 && bExtraJumpStopsFall) || bJumpsStopY)
+                        rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
+
+                if (!bOnWall && !bNearWall)
+                {
+                    rigidbody2D.AddForce(new Vector2(0f, jumpForce));
+                    bOnGround = false;
+                }
+                else
+                {
+                    float dir = transform.localScale.x;
+
+                    if (bOnWall)
+                        dir *= -1f;
+                    if(bJumpsStopY)
+                        rigidbody2D.velocity = Vector2.zero;
+
+                    rigidbody2D.AddForce(new Vector2(wallKickForce.x * dir, wallKickForce.y));
+
+                    bOnWall = false;
+                    bHanging = false;
+                    bJumpOffWall = true;
+
+                    rigidbody2D.gravityScale = 1f;
+
+                    jumps = maxJumps;
+                }
+
+                bJumpHeld = true;
+                jumpHeldTime = Time.time;
+
+                ++jumps;
+            }
+        }
+        else
+            if (_isJumping && Time.time - jumpHeldTime < longJumpTime && jumps == 1)
+                rigidbody2D.AddForce(new Vector2(0f, !bJumpOffWall ? longJumpForce : longWallKickForce));
+
+        if (!_isJumping)
+        {
+            bJumpHeld = false;
+            bJumpOffWall = false;
+        }
+    }
+
+    internal protected void HandleMovementAlive(float _h)
+    {
+        if (_h != 0)
+        {
+            if (bOnGround)
+                animator.Play("Run");
+
+            _h = _h < 0 ? -1 : 1;
+
+            transform.localScale = new Vector3(_h, transform.localScale.y, transform.localScale.z);
+
+            if (_h * rigidbody2D.velocity.x < maxSpeed.x)
+                rigidbody2D.AddForce(Vector2.right * (bOnGround ? accelSpeed * groundDragCof : airAccelSpeed) * _h);
+        }
+        else if (bOnGround)
+            AddHorizontalDrag(groundDragMagic, groundDragCof);
+        else
+            AddHorizontalDrag(airDragMagic);
+
+        LimitSpeed();
+    }
+
+    internal protected void HandleMovementWall(float _h)
+    {
+        if(_h != 0)
+            _h = _h < 0 ? -1 : 1;
+
+        if (_h == Mathf.Sign(transform.localScale.x) && wallHangTime < maxWallHangTime)
+        {
+            bHanging = true;
+            animator.Play("WallHang");
+
+            rigidbody2D.gravityScale = 0f;
+            rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
+        }
+        else
+        {
+            bHanging = false;
+            animator.Play("WallSlide");
+
+            rigidbody2D.gravityScale = 1f;
+            HandleMovementAlive(_h);
+        }
+
+        if (rigidbody2D.velocity.y < -wallGrindSpeed)
+            rigidbody2D.velocity = new Vector3(rigidbody2D.velocity.x, -wallGrindSpeed);
+    }
+
+    internal protected void HandlePreciseJump(bool _shouldPrecise)
+    {
+        if (_shouldPrecise)
+        {
+            if (!bPrecised)
+            {
+                bPrecised = true;
+
+                if (Time.time - slamPressTime > slamDoublePressTime)
+                {
+                    rigidbody2D.velocity = Vector2.Scale(rigidbody2D.velocity, preciseJumpVelocityModifier);
+                    slamPressTime = Time.time;
+                }
+                else
+                {
+                    rigidbody2D.velocity = Vector2.up * maxSpeed.y * -1f;
+                    slamPressTime = 0f;
+                }
+            }
+        }else
+            bPrecised = false;
+    }
+
+    internal protected void HandleMovementDead()
+    {
+        float h = Input.GetAxis("Horizontal_" + playerNum);
+        float v = Input.GetAxis("Vertical_" + playerNum);
+
+        rigidbody2D.AddForce(new Vector2(h * deadAccelSpeed, v * deadAccelSpeed));
+
+        if (rigidbody2D.velocity.magnitude > deadMoveSpeed)
+            rigidbody2D.velocity = rigidbody2D.velocity.normalized * deadMoveSpeed;
+    }
+
+    private void AddHorizontalDrag(float _dragMagic, float _dragCof = 1f)
+    {
+        if (Mathf.Abs(rigidbody2D.velocity.x) > standStillSpeed)
+        {
+            float vX = rigidbody2D.velocity.x;
+            // Magic be here
+            vX -= vX * (_dragMagic * Mathf.Pow(_dragCof, 2));
+
+            if(Mathf.Sign(vX) != Mathf.Sign(rigidbody2D.velocity.x))
+                rigidbody2D.velocity = new Vector2(0, rigidbody2D.velocity.y);
+            else
+                rigidbody2D.velocity = new Vector2(vX, rigidbody2D.velocity.y);
+        }
+        else
+        {
+            rigidbody2D.velocity = new Vector2(0, rigidbody2D.velocity.y);
+            if(bOnGround)
+                animator.Play("Still");
+        }
+    }
+
+    private void LimitSpeed()
+    {
+        float xSpeed = rigidbody2D.velocity.x;
+        float ySpeed = rigidbody2D.velocity.y;
+
+        if (Mathf.Abs(xSpeed) > maxSpeed.x)
+            xSpeed = maxSpeed.x * Mathf.Sign(xSpeed);
+        if (Mathf.Abs(ySpeed) > maxSpeed.y)
+            ySpeed = maxSpeed.y * Mathf.Sign(ySpeed);
+
+        rigidbody2D.velocity = new Vector2(xSpeed, ySpeed);
+    }
+
+    #endregion
 
     #region Update
 
@@ -306,198 +501,6 @@ public class Mario : MonoBehaviour {
         }
         else
             OnKill();
-    }
-
-    #endregion
-
-    #region FixedUpdate
-
-    protected void FixedUpdate()
-    {
-        if (!bIsDead && !bUnderDirectControl)
-        {
-            HandleJump(Input.GetButton("Jump_" + playerNum));
-
-            if (!bOnWall && !bIsCrouching)
-                HandleMovementAlive(Input.GetAxis("Horizontal_" + playerNum));
-            else if (bOnWall)
-                HandleMovementWall(Input.GetAxis("Horizontal_" + playerNum));
-            else if (bIsSliding && bOnGround)
-                AddHorizontalDrag(groundDragMagic, (slideDragCof * (slideTime / maxSlideTime)) * groundDragCof);
-
-            HandlePreciseJump(Input.GetButton("Precise_" + playerNum));
-        }
-        else
-            HandleMovementDead();
-    }
-
-    internal protected void HandleJump(bool _isJumping)
-    {
-        if (!bJumpHeld)
-        {
-            if (_isJumping
-                && ((bOnGround || (!bOnGround && jumps < maxJumps))
-                    || bOnWall || bNearWall))
-            {
-                animator.Play("Jump");
-
-                if (jumps > 0 && bExtraJumpStopsFall)
-                        rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
-
-                if (!bOnWall && !bNearWall)
-                {
-                    rigidbody2D.AddForce(new Vector2(0f, jumpForce));
-                    bOnGround = false;
-                }
-                else
-                {
-                    float dir = transform.localScale.x;
-
-                    if (bOnWall)
-                        dir *= -1f;
-
-                    rigidbody2D.AddForce(new Vector2(wallKickForce.x * dir, wallKickForce.y));
-
-                    bOnWall = false;
-                    bHanging = false;
-                    bJumpOffWall = true;
-
-                    rigidbody2D.gravityScale = 1f;
-
-                    jumps = maxJumps;
-                }
-
-                bJumpHeld = true;
-                jumpHeldTime = Time.time;
-
-                ++jumps;
-            }
-        }
-        else
-            if (_isJumping && Time.time - jumpHeldTime < longJumpTime && jumps == 1)
-                rigidbody2D.AddForce(new Vector2(0f, !bJumpOffWall ? longJumpForce : longWallKickForce));
-
-        if (!_isJumping)
-        {
-            bJumpHeld = false;
-            bJumpOffWall = false;
-        }
-    }
-
-    internal protected void HandleMovementAlive(float _h)
-    {
-        if (_h != 0)
-        {
-            if (bOnGround)
-                animator.Play("Run");
-
-            _h = _h < 0 ? -1 : 1;
-
-            transform.localScale = new Vector3(_h, transform.localScale.y, transform.localScale.z);
-
-            if (_h * rigidbody2D.velocity.x < maxSpeed.x)
-                rigidbody2D.AddForce(Vector2.right * (bOnGround ? accelSpeed * groundDragCof : airAccelSpeed) * _h);
-        }
-        else if (bOnGround)
-            AddHorizontalDrag(groundDragMagic, groundDragCof);
-        else
-            AddHorizontalDrag(airDragMagic);
-
-        LimitSpeed();
-    }
-
-    internal protected void HandleMovementWall(float _h)
-    {
-        if(_h != 0)
-            _h = _h < 0 ? -1 : 1;
-
-        if (_h == Mathf.Sign(transform.localScale.x) && wallHangTime < maxWallHangTime)
-        {
-            bHanging = true;
-            animator.Play("WallHang");
-
-            rigidbody2D.gravityScale = 0f;
-            rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
-        }
-        else
-        {
-            bHanging = false;
-            animator.Play("WallSlide");
-
-            rigidbody2D.gravityScale = 1f;
-            HandleMovementAlive(_h);
-        }
-
-        if (rigidbody2D.velocity.y < -wallGrindSpeed)
-            rigidbody2D.velocity = new Vector3(rigidbody2D.velocity.x, -wallGrindSpeed);
-    }
-
-    internal protected void HandlePreciseJump(bool _shouldPrecise)
-    {
-        if (_shouldPrecise)
-        {
-            if (!bPrecised)
-            {
-                bPrecised = true;
-
-                if (Time.time - slamPressTime > slamDoublePressTime)
-                {
-                    rigidbody2D.velocity = Vector2.Scale(rigidbody2D.velocity, preciseJumpVelocityModifier);
-                    slamPressTime = Time.time;
-                }
-                else
-                {
-                    rigidbody2D.velocity = Vector2.up * maxSpeed.y * -1f;
-                    slamPressTime = 0f;
-                }
-            }
-        }else
-            bPrecised = false;
-    }
-
-    internal protected void HandleMovementDead()
-    {
-        float h = Input.GetAxis("Horizontal_" + playerNum);
-        float v = Input.GetAxis("Vertical_" + playerNum);
-
-        rigidbody2D.AddForce(new Vector2(h * deadAccelSpeed, v * deadAccelSpeed));
-
-        if (rigidbody2D.velocity.magnitude > deadMoveSpeed)
-            rigidbody2D.velocity = rigidbody2D.velocity.normalized * deadMoveSpeed;
-    }
-
-    private void AddHorizontalDrag(float _dragMagic, float _dragCof = 1f)
-    {
-        if (Mathf.Abs(rigidbody2D.velocity.x) > standStillSpeed)
-        {
-            float vX = rigidbody2D.velocity.x;
-            // Magic be here
-            vX -= vX * (_dragMagic * Mathf.Pow(_dragCof, 2));
-
-            if(Mathf.Sign(vX) != Mathf.Sign(rigidbody2D.velocity.x))
-                rigidbody2D.velocity = new Vector2(0, rigidbody2D.velocity.y);
-            else
-                rigidbody2D.velocity = new Vector2(vX, rigidbody2D.velocity.y);
-        }
-        else
-        {
-            rigidbody2D.velocity = new Vector2(0, rigidbody2D.velocity.y);
-            if(bOnGround)
-                animator.Play("Still");
-        }
-    }
-
-    private void LimitSpeed()
-    {
-        float xSpeed = rigidbody2D.velocity.x;
-        float ySpeed = rigidbody2D.velocity.y;
-
-        if (Mathf.Abs(xSpeed) > maxSpeed.x)
-            xSpeed = maxSpeed.x * Mathf.Sign(xSpeed);
-        if (Mathf.Abs(ySpeed) > maxSpeed.y)
-            ySpeed = maxSpeed.y * Mathf.Sign(ySpeed);
-
-        rigidbody2D.velocity = new Vector2(xSpeed, ySpeed);
     }
 
     #endregion

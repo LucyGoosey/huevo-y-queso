@@ -18,18 +18,17 @@ public class TestMario : MonoBehaviour {
         JT_Hold,
         JT_DoubleJump,
         JT_Glide,
+        JT_MarkHigh,
         JT_Land
     }
 
     class Params
     {
-        public TestState firstState;
         public bool bMarkLocations = false;
     }
 
     class JTParams : Params
     {
-        new public TestState firstState = TestState.JT_Accelerate;
         public bool bGoRight = true;
         public bool bHoldDir = false;
         public bool bLongJump = false;
@@ -37,7 +36,10 @@ public class TestMario : MonoBehaviour {
         public bool bGlide = false;
     }
 
+    TestState[] firstStates = new TestState[1] { TestState.JT_Accelerate };
+
     GameObject markerPrefab;
+    GameObject specialMarkerPrefab;
 
     TestName curTest = TestName.T_None;
     TestState curState = TestState.TS_None;
@@ -45,6 +47,13 @@ public class TestMario : MonoBehaviour {
     Params curParams = null;
 
     bool bAlwaysMarkLocations = false;
+    Vector2 lastLocationMarked = Vector2.zero;
+    float minMarkerDistance = 1f;
+
+    GameObject markerParent = null;
+    Vector2 markerOffset = new Vector2(-0.8f, -0.8f);
+
+    public GameObject selectedPath;
 
     void Start()
     {
@@ -52,19 +61,25 @@ public class TestMario : MonoBehaviour {
         if (linkedMario == null)
         {
             Debug.Log("No mario linked to test mario!");
-            Destroy(gameObject);
+            Destroy(this);
         }
 
         markerPrefab = Resources.Load<GameObject>("Marker");
+        specialMarkerPrefab = Resources.Load<GameObject>("SpecialMarker");
 
         testParameters[0] = new JTParams();
+        curParams = new Params();
     }
 
     void FixedUpdate()
     {
-        Debug.Log("Updating!");
-        if(bAlwaysMarkLocations)
-            Instantiate(markerPrefab, transform.position, Quaternion.identity);
+        if (markerParent != null
+            && (!bAlwaysMarkLocations && curTest == TestName.T_None && curState == TestState.TS_None))
+            markerParent = null;
+
+        MarkLocation(bAlwaysMarkLocations 
+                    || (!bAlwaysMarkLocations && curParams.bMarkLocations 
+                        && curTest != TestName.T_None && curState != TestState.TS_None));
 
         if (linkedMario.IsDead() && curState != TestState.TS_None)
             curState = TestState.TS_End;
@@ -77,9 +92,6 @@ public class TestMario : MonoBehaviour {
             curTest = TestName.T_None;
             return;
         }
-
-        if(curParams.bMarkLocations && !bAlwaysMarkLocations)
-            Instantiate(markerPrefab, transform.position, Quaternion.identity);
 
         switch (curState)
         {
@@ -106,6 +118,10 @@ public class TestMario : MonoBehaviour {
                 JTLand();
                 break;
 
+            case TestState.JT_MarkHigh:
+                JTMarkHigh();
+                break;
+
             case TestState.TS_End:
                 EndTest();
                 break;
@@ -125,7 +141,11 @@ public class TestMario : MonoBehaviour {
         bool bGlide = ((JTParams)curParams).bGlide;
         if (Mathf.Abs(rigidbody2D.velocity.x) >= linkedMario.maxSpeed.x)
         {
-            curState = bLongJump ? TestState.JT_Hold : bDoubleJump ? TestState.JT_DoubleJump : bGlide ? TestState.JT_Glide : TestState.JT_Land;
+            if (bAlwaysMarkLocations || curParams.bMarkLocations)
+                MarkLocation(true, true);
+
+            curState = bLongJump ? TestState.JT_Hold : bDoubleJump ? TestState.JT_DoubleJump : bGlide ? TestState.JT_Glide : TestState.JT_MarkHigh;
+
             linkedMario.HandleJump(true);
             if (curState != TestState.JT_Hold)
                 linkedMario.HandleJump(false);
@@ -144,7 +164,7 @@ public class TestMario : MonoBehaviour {
 
             bool bDoubleJump = ((JTParams)curParams).bDoubleJump;
             bool bGlide = ((JTParams)curParams).bGlide;
-            curState = bDoubleJump ? TestState.JT_DoubleJump : bGlide ? TestState.JT_Glide : TestState.JT_Land;
+            curState = bDoubleJump ? TestState.JT_DoubleJump : bGlide ? TestState.JT_Glide : TestState.JT_MarkHigh;
         }
 
         if (((JTParams)curParams).bHoldDir)
@@ -159,8 +179,11 @@ public class TestMario : MonoBehaviour {
     {
         if (rigidbody2D.velocity.y <= 0)
         {
+            if (bAlwaysMarkLocations || curParams.bMarkLocations)
+                MarkLocation(true, true);
+
             bool bGlide = ((JTParams)curParams).bGlide;
-            curState = bGlide ? TestState.JT_Glide : TestState.JT_Land;
+            curState = bGlide ? TestState.JT_Glide : TestState.JT_MarkHigh;
 
             linkedMario.HandleJump(true);
         }
@@ -178,8 +201,23 @@ public class TestMario : MonoBehaviour {
     {
         if (rigidbody2D.velocity.y <= 0 || bGliding)
         {
+            if(!bGliding)
+                if (bAlwaysMarkLocations || curParams.bMarkLocations)
+                    MarkLocation(true, true);
+
             linkedMario.HandleGlide(true);
             bGliding = true;
+        }
+    }
+
+    void JTMarkHigh()
+    {
+        if (rigidbody2D.velocity.y <= 0)
+        {
+            if (bAlwaysMarkLocations || curParams.bMarkLocations)
+                MarkLocation(true, true);
+
+            curState = TestState.JT_Land;
         }
     }
 
@@ -187,6 +225,9 @@ public class TestMario : MonoBehaviour {
     {
         if (linkedMario.IsGrounded())
         {
+            if (bAlwaysMarkLocations || curParams.bMarkLocations)
+                MarkLocation(true, true);
+
             curState = TestState.TS_End;
         }
         
@@ -200,14 +241,16 @@ public class TestMario : MonoBehaviour {
 
     void OnGUI()
     {
-        Debug.Log("Showing GUI");
         if (curState == TestState.TS_None)
             ShowTestOptions();
+        else
+            if (GUI.Button(new Rect(10, 10, 150, 20), "End Test"))
+                curState = TestState.TS_End;
     }
 
     void ShowTestOptions()
     {
-        bAlwaysMarkLocations = GUI.Toggle(new Rect(150, 10, 150, 20), bAlwaysMarkLocations, "Always mark locations?");
+        bAlwaysMarkLocations = GUI.Toggle(new Rect(150, 10, 160, 20), bAlwaysMarkLocations, "Always mark locations?");
 
         TestName drawTest = TestName.T_None;
         {   // Jump test
@@ -223,18 +266,20 @@ public class TestMario : MonoBehaviour {
 
             GUI.Label(new Rect(12.5f, 10, 70, 20), "Jump Test: ");
             if (GUI.Button(new Rect(80, 10, 60, 25), "Begin!"))
-                BeginTest(drawTest, parms.firstState);
+                BeginTest(drawTest);
         }
 
-
+        if (selectedPath != null && selectedPath.transform.Find("Mario pos") != null)
+            if (GUI.Button(new Rect(320, 10, 150, 20), "Reset mario"))
+                transform.position = selectedPath.transform.Find("Mario pos").position;
     }
 
     #endregion
 
-    void BeginTest(TestName _test, TestState _firstState)
+    void BeginTest(TestName _test)
     {
         curTest = _test;
-        curState = _firstState;
+        curState = firstStates[(int)curTest];
         curParams = testParameters[(int)curTest];
 
         linkedMario.bUnderDirectControl = true;
@@ -242,10 +287,32 @@ public class TestMario : MonoBehaviour {
 
     void EndTest()
     {
-        curParams = null;
+        curParams = new Params();
         curState = TestState.TS_None;
         curTest = TestName.T_None;
 
         linkedMario.bUnderDirectControl = false;
+        if(!bAlwaysMarkLocations)
+            markerParent = null;
+    }
+
+    private void MarkLocation(bool _shouldMark, bool _specialMark = false)
+    {
+        if (_shouldMark && (Vector2.Distance(transform.position, lastLocationMarked) > minMarkerDistance || _specialMark))
+        {
+            if (markerParent == null)
+            {
+                markerParent = new GameObject("Marked Path");
+                markerParent.transform.position = transform.position + (Vector3)markerOffset;
+
+                GameObject mPos = new GameObject("Mario pos");
+                mPos.transform.position = transform.position;
+                mPos.transform.parent = markerParent.transform;
+            }
+
+            GameObject mark = (GameObject)Instantiate(_specialMark ? specialMarkerPrefab : markerPrefab, transform.position, Quaternion.identity);
+            mark.transform.parent = markerParent.transform;
+            lastLocationMarked = transform.position;
+        }
     }
 }
