@@ -1,7 +1,9 @@
 ﻿using UnityEngine;
-using System.Collections.Generic;
+using System.Collections;
 
-public class TestMario : Mario {
+public class TestMario : MonoBehaviour {
+
+    Mario linkedMario;
 
     enum TestName
     {
@@ -35,45 +37,53 @@ public class TestMario : Mario {
         public bool bGlide = false;
     }
 
-    public GameObject markerPrefab;
+    GameObject markerPrefab;
 
     TestName curTest = TestName.T_None;
     TestState curState = TestState.TS_None;
     Params[] testParameters = new Params[1];
     Params curParams = null;
 
-    new void Start()
+    bool bAlwaysMarkLocations = false;
+
+    void Start()
     {
-        base.Start();
+        linkedMario = gameObject.GetComponent<Mario>();
+        if (linkedMario == null)
+        {
+            Debug.Log("No mario linked to test mario!");
+            Destroy(gameObject);
+        }
+
+        markerPrefab = Resources.Load<GameObject>("Marker");
 
         testParameters[0] = new JTParams();
     }
 
-    new void FixedUpdate()
+    void FixedUpdate()
     {
-        if (IsDead() && curState != TestState.TS_None)
+        Debug.Log("Updating!");
+        if(bAlwaysMarkLocations)
+            Instantiate(markerPrefab, transform.position, Quaternion.identity);
+
+        if (linkedMario.IsDead() && curState != TestState.TS_None)
             curState = TestState.TS_End;
 
         if (curTest == TestName.T_None)
-        {
-            base.FixedUpdate();
             return;
-        }
 
         if(curState == TestState.TS_None)
         {
             curTest = TestName.T_None;
-            base.FixedUpdate();
             return;
         }
 
-        if(curParams.bMarkLocations)
+        if(curParams.bMarkLocations && !bAlwaysMarkLocations)
             Instantiate(markerPrefab, transform.position, Quaternion.identity);
 
         switch (curState)
         {
             default:
-                base.FixedUpdate();
                 return;
 
             case TestState.JT_Accelerate:
@@ -108,29 +118,29 @@ public class TestMario : Mario {
     {
         bool bGoRight = ((JTParams)curParams).bGoRight;
         
-        HandleMovementAlive(bGoRight ? 1f : -1f);
+        linkedMario.HandleMovementAlive(bGoRight ? 1f : -1f);
         
         bool bLongJump = ((JTParams)curParams).bLongJump;
         bool bDoubleJump = ((JTParams)curParams).bDoubleJump;
         bool bGlide = ((JTParams)curParams).bGlide;
-        if (Mathf.Abs(rigidbody2D.velocity.x) >= maxSpeed.x)
+        if (Mathf.Abs(rigidbody2D.velocity.x) >= linkedMario.maxSpeed.x)
         {
             curState = bLongJump ? TestState.JT_Hold : bDoubleJump ? TestState.JT_DoubleJump : bGlide ? TestState.JT_Glide : TestState.JT_Land;
-            HandleJump(true);
+            linkedMario.HandleJump(true);
             if (curState != TestState.JT_Hold)
-                HandleJump(false);
+                linkedMario.HandleJump(false);
         }
     }
 
     void JTHold()
     {
-        if (Time.time - jumpHeldTime < longJumpTime)
+        if (Time.time - linkedMario.jumpHeldTime < linkedMario.longJumpTime)
         {
-            HandleJump(true);
+            linkedMario.HandleJump(true);
         }
         else
         {
-            HandleJump(false);
+            linkedMario.HandleJump(false);
 
             bool bDoubleJump = ((JTParams)curParams).bDoubleJump;
             bool bGlide = ((JTParams)curParams).bGlide;
@@ -141,7 +151,7 @@ public class TestMario : Mario {
         {
             bool bGoRight = ((JTParams)curParams).bGoRight;
         
-            HandleMovementAlive(bGoRight ? 1f : -1f);
+            linkedMario.HandleMovementAlive(bGoRight ? 1f : -1f);
         }
     }
 
@@ -152,31 +162,36 @@ public class TestMario : Mario {
             bool bGlide = ((JTParams)curParams).bGlide;
             curState = bGlide ? TestState.JT_Glide : TestState.JT_Land;
 
-            HandleJump(true);
+            linkedMario.HandleJump(true);
         }
 
         if (((JTParams)curParams).bHoldDir)
         {
             bool bGoRight = ((JTParams)curParams).bGoRight;
         
-            HandleMovementAlive(bGoRight ? 1f : -1f);
+            linkedMario.HandleMovementAlive(bGoRight ? 1f : -1f);
         }
     }
 
+    bool bGliding = false;
     void JTGlide()
     {
-        curState = TestState.JT_Land;
+        if (rigidbody2D.velocity.y <= 0 || bGliding)
+        {
+            linkedMario.HandleGlide(true);
+            bGliding = true;
+        }
     }
 
     void JTLand()
     {
-        if (IsGrounded())
+        if (linkedMario.IsGrounded())
         {
             curState = TestState.TS_End;
         }
         
         if (((JTParams)curParams).bHoldDir)
-            HandleMovementAlive(((JTParams)curParams).bGoRight ? 1f : -1f);
+            linkedMario.HandleMovementAlive(((JTParams)curParams).bGoRight ? 1f : -1f);
     }
 
     #endregion
@@ -185,12 +200,15 @@ public class TestMario : Mario {
 
     void OnGUI()
     {
+        Debug.Log("Showing GUI");
         if (curState == TestState.TS_None)
             ShowTestOptions();
     }
 
     void ShowTestOptions()
     {
+        bAlwaysMarkLocations = GUI.Toggle(new Rect(150, 10, 150, 20), bAlwaysMarkLocations, "Always mark locations?");
+
         TestName drawTest = TestName.T_None;
         {   // Jump test
             drawTest = TestName.T_Jump;
@@ -207,6 +225,8 @@ public class TestMario : Mario {
             if (GUI.Button(new Rect(80, 10, 60, 25), "Begin!"))
                 BeginTest(drawTest, parms.firstState);
         }
+
+
     }
 
     #endregion
@@ -216,6 +236,8 @@ public class TestMario : Mario {
         curTest = _test;
         curState = _firstState;
         curParams = testParameters[(int)curTest];
+
+        linkedMario.bUnderDirectControl = true;
     }
 
     void EndTest()
@@ -223,5 +245,7 @@ public class TestMario : Mario {
         curParams = null;
         curState = TestState.TS_None;
         curTest = TestName.T_None;
+
+        linkedMario.bUnderDirectControl = false;
     }
 }

@@ -1,5 +1,8 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("TestMario2")]
 
 [RequireComponent (typeof(SpriteRenderer))]
 [RequireComponent (typeof(BoxCollider2D))]
@@ -14,22 +17,22 @@ public class Mario : MonoBehaviour {
     public float gravityScale = 1f;
 
     [SerializeField]
-    protected Vector2 maxSpeed = new Vector2(7.5f, 10f);
+    internal protected Vector2 maxSpeed = new Vector2(7.5f, 10f);
     [SerializeField]
-    protected float accelSpeed = 20f;
+    internal protected float accelSpeed = 20f;
     [SerializeField]
-    protected float airAccelSpeed = 10f;
+    internal protected float airAccelSpeed = 10f;
     [SerializeField]
-    protected float groundDragMagic = 0.05f;
+    internal protected float groundDragMagic = 0.05f;
     public float groundDragCof = 1f;
     [SerializeField]
-    protected float airDragMagic = 0f;
+    internal protected float airDragMagic = 0f;
     [SerializeField]
-    protected float jumpForce = 500f;
+    internal protected float jumpForce = 500f;
     [SerializeField]
-    protected float longJumpForce = 0.1f;
+    internal protected float longJumpForce = 0.1f;
     [SerializeField]
-    protected float bubblePopDistance = 4f;
+    internal protected float bubblePopDistance = 4f;
 
     private Transform groundPosMid;
     private Transform groundPosLeft;
@@ -50,24 +53,32 @@ public class Mario : MonoBehaviour {
     private float wallGrindSpeed = 5f;
 
     [SerializeField]
-    protected float longJumpTime = 0.5f;
+    internal protected float longJumpTime = 0.5f;
     private bool bJumpHeld = false;
-    protected float jumpHeldTime = 0;
+    internal protected float jumpHeldTime = 0;
     private bool bJumpOffWall = false;
 
     [SerializeField]
     private int maxJumps = 2;
     private int jumps = 0;
+    public bool bExtraJumpStopsFall = true;
 
     [SerializeField]
     private float maxGlideTime = 2f;
     private float glideTime = 0f;
     private bool bIsGliding = false;
+    public Vector2 glideVelocityModifier = new Vector2(0.5f, 0.5f);
+    public float glideGravityScale = 0.5f;
+    public bool bGlideKillsY = true;
+    public Vector2 preciseJumpVelocityModifier = Vector2.zero;
+    private bool bPrecised = false;
+    public float slamDoublePressTime = 0.1f;
+    private float slamPressTime = 0f;
 
     [SerializeField]
     private float maxSlideTime = 1f;
     [SerializeField]
-    protected float slideDragCof = 0.75f;
+    internal protected float slideDragCof = 0.75f;
     [SerializeField]
     private float minSlideSpeed = 0.75f;
     private float slideTime = 0f;
@@ -75,6 +86,12 @@ public class Mario : MonoBehaviour {
     private bool bIsCrouching = false;
     private bool bIsSliding = false;
     public bool bFloatWhileSliding = false;
+    public bool bSlideFloatForTime = true;
+    public float minSlideFloatSpeed = 0.5f;
+    public float endSlideFloatSpeed = 0.2f;
+    public float maxSlideFloatTime = 0.5f;
+    public float slideFalloffTime = 0.3f;
+    private float slideFloatTime = 0f;
     
     private bool bIsDead = false;
     public bool IsDead() { return bIsDead; }
@@ -85,13 +102,15 @@ public class Mario : MonoBehaviour {
     private float longWallKickForce = 5f;
 
     [SerializeField]
-    protected float deadAccelSpeed = 40f;
+    internal protected float deadAccelSpeed = 40f;
     [SerializeField]
-    protected float deadMoveSpeed = 15f;
+    internal protected float deadMoveSpeed = 15f;
 
     public float standStillSpeed = 0.01f;
 
-	protected void Start ()
+    internal protected bool bUnderDirectControl = false;
+
+	internal protected void Start ()
     {
         animator = GetComponent<Animator>();
 
@@ -107,14 +126,24 @@ public class Mario : MonoBehaviour {
 
     void Update()
     {
+        if (bIsDead)
+        {
+            if (Input.GetButtonDown("Bubble_" + playerNum))
+                ToggleBubble();
+            return;
+        }
+
         CheckGround();
 
         if (!bOnGround)
         {
             CheckWall();
 
-            HandleGlide(Input.GetButton("Glide_" + playerNum));
-        }else if(bOnGround)
+            if(!bUnderDirectControl)
+                HandleGlide(Input.GetButton("Glide_" + playerNum));
+        }
+        
+        if((bOnGround || bIsSliding) && !bUnderDirectControl)
             HandleCrouch(Input.GetAxis("Vertical_" + playerNum) < 0);
 
         if (Input.GetButtonDown("Bubble_" + playerNum))
@@ -139,6 +168,8 @@ public class Mario : MonoBehaviour {
             glideTime = 0f;
             bIsGliding = false;
 
+            slideFloatTime = 0f;
+
             rigidbody2D.gravityScale = 1f;
 
             animator.Play("Still");
@@ -155,9 +186,12 @@ public class Mario : MonoBehaviour {
 
         if (bOnWall && bHanging)
             wallHangTime += Time.fixedDeltaTime;
+
+        if (wasOnWall && !bOnWall)
+            animator.Play("Jump");
     }
 
-    private void HandleGlide(bool _shouldGlide)
+    internal protected void HandleGlide(bool _shouldGlide)
     {
         if (bIsGliding)
             glideTime += Time.deltaTime;
@@ -165,8 +199,14 @@ public class Mario : MonoBehaviour {
         if (_shouldGlide && !bIsGliding
             && glideTime < maxGlideTime)
         {
-            rigidbody2D.gravityScale = gravityScale * 0.5f;
+            rigidbody2D.gravityScale = glideGravityScale;
             bIsGliding = true;
+            
+            rigidbody2D.velocity = Vector2.Scale(rigidbody2D.velocity, glideVelocityModifier);
+
+            if(bGlideKillsY)
+                if (Mathf.Sign(rigidbody2D.velocity.y) != Mathf.Sign(Physics2D.gravity.y))
+                    rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
         }
 
         if(bIsGliding && (!_shouldGlide || glideTime > maxGlideTime))
@@ -176,7 +216,7 @@ public class Mario : MonoBehaviour {
         }
     }
 
-    protected void HandleCrouch(bool _shouldCrouch)
+    internal protected void HandleCrouch(bool _shouldCrouch)
     {
         if (!bIsCrouching && _shouldCrouch)
         {
@@ -188,8 +228,6 @@ public class Mario : MonoBehaviour {
             {
                 bIsSliding = true;
                 slideVel = rigidbody2D.velocity.x;
-                if(bFloatWhileSliding)
-                    rigidbody2D.gravityScale = 0f;
             }
 
             if (!bIsSliding)
@@ -216,21 +254,55 @@ public class Mario : MonoBehaviour {
             if (bFloatWhileSliding)
                 rigidbody2D.gravityScale = 1f;
         }
+
+        if (bIsSliding && !bOnGround)
+        {
+            if (!bSlideFloatForTime)
+            {
+                float mSFS = maxSpeed.x * minSlideFloatSpeed;
+                if (Mathf.Abs(rigidbody2D.velocity.x) < mSFS)
+                    rigidbody2D.gravityScale = 1 - ((Mathf.Abs(rigidbody2D.velocity.x) + (endSlideFloatSpeed * maxSpeed.x)) / mSFS);
+                else
+                    rigidbody2D.gravityScale = 0;
+            }
+            else
+            {
+                slideFloatTime += Time.deltaTime;
+
+                if (slideFloatTime >= maxSlideFloatTime)
+                {
+                    bIsSliding = false;
+                    rigidbody2D.gravityScale = 1f;
+                    slideFloatTime = 0f;
+                }
+                else if (slideFloatTime > slideFalloffTime)
+                    rigidbody2D.gravityScale = (slideFloatTime - slideFalloffTime) / (maxSlideFloatTime - slideFalloffTime);
+                else
+                    rigidbody2D.gravityScale = 0;
+            }
+        }
+
     }
 
     private void ToggleBubble()
     {
         if (bIsDead)
         {
+#if UNITY_EDITOR
+            PopBubble();
+#else
             GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
             for (int i = 0; i < players.Length; ++i)
             {
-                if (players[i].Equals(gameObject) || players[i].GetComponent<Mario>().IsDead())
+                if (players[i].Equals(gameObject))
+                    continue;
+                if (players[i].GetComponent<Mario>() != null && players[i].GetComponent<Mario>().IsDead())
                     continue;
 
                 if (Vector2.Distance(transform.position, players[i].transform.position) < bubblePopDistance)
-                    PopBubble(players[i]);
+                    PopBubble();
             }
+#endif
         }
         else
             OnKill();
@@ -242,7 +314,7 @@ public class Mario : MonoBehaviour {
 
     protected void FixedUpdate()
     {
-        if (!bIsDead)
+        if (!bIsDead && !bUnderDirectControl)
         {
             HandleJump(Input.GetButton("Jump_" + playerNum));
 
@@ -252,12 +324,14 @@ public class Mario : MonoBehaviour {
                 HandleMovementWall(Input.GetAxis("Horizontal_" + playerNum));
             else if (bIsSliding && bOnGround)
                 AddHorizontalDrag(groundDragMagic, (slideDragCof * (slideTime / maxSlideTime)) * groundDragCof);
+
+            HandlePreciseJump(Input.GetButton("Precise_" + playerNum));
         }
         else
             HandleMovementDead();
     }
 
-    protected void HandleJump(bool _isJumping)
+    internal protected void HandleJump(bool _isJumping)
     {
         if (!bJumpHeld)
         {
@@ -267,8 +341,8 @@ public class Mario : MonoBehaviour {
             {
                 animator.Play("Jump");
 
-                if (jumps > 0)
-                    rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
+                if (jumps > 0 && bExtraJumpStopsFall)
+                        rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
 
                 if (!bOnWall && !bNearWall)
                 {
@@ -288,7 +362,7 @@ public class Mario : MonoBehaviour {
                     bHanging = false;
                     bJumpOffWall = true;
 
-                    rigidbody2D.gravityScale = gravityScale;
+                    rigidbody2D.gravityScale = 1f;
 
                     jumps = maxJumps;
                 }
@@ -301,7 +375,7 @@ public class Mario : MonoBehaviour {
         }
         else
             if (_isJumping && Time.time - jumpHeldTime < longJumpTime && jumps == 1)
-                rigidbody2D.AddForce(new Vector2(0f, bJumpOffWall ? longJumpForce : longWallKickForce));
+                rigidbody2D.AddForce(new Vector2(0f, !bJumpOffWall ? longJumpForce : longWallKickForce));
 
         if (!_isJumping)
         {
@@ -310,7 +384,7 @@ public class Mario : MonoBehaviour {
         }
     }
 
-    protected void HandleMovementAlive(float _h)
+    internal protected void HandleMovementAlive(float _h)
     {
         if (_h != 0)
         {
@@ -332,7 +406,7 @@ public class Mario : MonoBehaviour {
         LimitSpeed();
     }
 
-    protected void HandleMovementWall(float _h)
+    internal protected void HandleMovementWall(float _h)
     {
         if(_h != 0)
             _h = _h < 0 ? -1 : 1;
@@ -350,7 +424,7 @@ public class Mario : MonoBehaviour {
             bHanging = false;
             animator.Play("WallSlide");
 
-            rigidbody2D.gravityScale = gravityScale;
+            rigidbody2D.gravityScale = 1f;
             HandleMovementAlive(_h);
         }
 
@@ -358,7 +432,30 @@ public class Mario : MonoBehaviour {
             rigidbody2D.velocity = new Vector3(rigidbody2D.velocity.x, -wallGrindSpeed);
     }
 
-    protected void HandleMovementDead()
+    internal protected void HandlePreciseJump(bool _shouldPrecise)
+    {
+        if (_shouldPrecise)
+        {
+            if (!bPrecised)
+            {
+                bPrecised = true;
+
+                if (Time.time - slamPressTime > slamDoublePressTime)
+                {
+                    rigidbody2D.velocity = Vector2.Scale(rigidbody2D.velocity, preciseJumpVelocityModifier);
+                    slamPressTime = Time.time;
+                }
+                else
+                {
+                    rigidbody2D.velocity = Vector2.up * maxSpeed.y * -1f;
+                    slamPressTime = 0f;
+                }
+            }
+        }else
+            bPrecised = false;
+    }
+
+    internal protected void HandleMovementDead()
     {
         float h = Input.GetAxis("Horizontal_" + playerNum);
         float v = Input.GetAxis("Vertical_" + playerNum);
@@ -420,10 +517,10 @@ public class Mario : MonoBehaviour {
         db.SetPlayer(playerNum);
     }
 
-    private void PopBubble(GameObject _player)
+    private void PopBubble()
     {
         bIsDead = false;
-        rigidbody2D.gravityScale = gravityScale;
+        rigidbody2D.gravityScale = 1f;
 
         // TODO Attach to other player if in air
         collider2D.enabled = true;

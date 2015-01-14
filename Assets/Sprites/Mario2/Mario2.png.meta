@@ -8,9 +8,9 @@ TextureImporter:
     21300006: Run3
     21300008: Turn
     21300010: Jump
-    21300012: Death
-    21300014: Slide1
-    21300016: Slide2
+    21300012: Crouch
+    21300014: WallHang
+    21300016: WallSlide
   serializedVersion: 2
   mipmaps:
     mipMapMode: 0
@@ -112,7 +112,7 @@ TextureImporter:
       alignment: 0
       pivot: {x: .5, y: .5}
       border: {x: 0, y: 0, z: 0, w: 0}
-    - name: Death
+    - name: Crouch
       rect:
         serializedVersion: 2
         x: 960
@@ -122,7 +122,7 @@ TextureImporter:
       alignment: 0
       pivot: {x: .5, y: .5}
       border: {x: 0, y: 0, z: 0, w: 0}
-    - name: Slide1
+    - name: WallSlide
       rect:
         serializedVersion: 2
         x: 1120
@@ -132,7 +132,7 @@ TextureImporter:
       alignment: 0
       pivot: {x: .5, y: .5}
       border: {x: 0, y: 0, z: 0, w: 0}
-    - name: Slide2
+    - name: WallHang
       rect:
         serializedVersion: 2
         x: 1280
