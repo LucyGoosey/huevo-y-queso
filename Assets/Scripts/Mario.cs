@@ -111,8 +111,15 @@ public class Mario : MonoBehaviour {
 
     internal protected bool bUnderDirectControl = false;
 
-	internal protected void Start ()
+	void Start ()
     {
+#if UNITY_DEBUG
+        TestMario tMario = ((GameObject)Instantiate(Resources.Load<GameObject>("TestMario"))).GetComponent<TestMario>();
+        tMario.transform.position = transform.position;
+        tMario.transform.parent = transform;
+        tMario.LinkMario(this);
+#endif
+
         animator = GetComponent<Animator>();
 
         groundPosMid = transform.Find("GroundPos");
@@ -127,7 +134,13 @@ public class Mario : MonoBehaviour {
 
     protected void FixedUpdate()
     {
-        if (!bIsDead && !bUnderDirectControl)
+        if (bUnderDirectControl && !bIsDead)
+        {
+            AddHorizontalDrag(groundDragMagic, (slideDragCof * (slideTime / maxSlideTime)) * groundDragCof);
+            return;
+        }
+
+        if (!bIsDead)
         {
             HandleJump(Input.GetButton("Jump_" + playerNum));
 
@@ -160,6 +173,7 @@ public class Mario : MonoBehaviour {
                 if (!bOnWall && !bNearWall)
                 {
                     rigidbody2D.AddForce(new Vector2(0f, jumpForce));
+
                     bOnGround = false;
                 }
                 else
@@ -244,7 +258,9 @@ public class Mario : MonoBehaviour {
         }
 
         if (rigidbody2D.velocity.y < -wallGrindSpeed)
-            rigidbody2D.velocity = new Vector3(rigidbody2D.velocity.x, -wallGrindSpeed);
+            rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, -wallGrindSpeed);
+        if (rigidbody2D.velocity.y > 0)
+            rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
     }
 
     internal protected void HandlePreciseJump(bool _shouldPrecise)

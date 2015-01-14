@@ -12,6 +12,8 @@
 *.suo
 
 # Build ignores
+/bin
+/bin/*
 /*_Data
 *.exe
 
