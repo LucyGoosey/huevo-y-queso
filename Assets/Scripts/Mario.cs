@@ -65,9 +65,9 @@ public class Mario : MonoBehaviour {
     public bool bJumpsStopY = true;
 
     [SerializeField]
-    private float maxGlideTime = 2f;
-    private float glideTime = 0f;
-    private bool bIsGliding = false;
+    internal protected float maxGlideTime = 2f;
+    internal protected float glideTime = 0f;
+    internal protected bool bIsGliding = false;
     public Vector2 glideVelocityModifier = new Vector2(0.5f, 0.5f);
     public float glideGravityScale = 0.5f;
     public bool bGlideKillsY = true;
@@ -93,6 +93,24 @@ public class Mario : MonoBehaviour {
     public float maxSlideFloatTime = 0.5f;
     public float slideFalloffTime = 0.3f;
     private float slideFloatTime = 0f;
+
+    [SerializeField]
+    private bool bCanShuffle = true;
+    [SerializeField]
+    private bool bShuffleBlocksInput = false;
+    private bool bIsShuffling = false;
+    private int shuffleDir = 0;
+    [SerializeField]
+    private float shuffleWaitTime = 1f;
+    [SerializeField]
+    private float shuffleMoveTime = 0.3f;
+    [SerializeField]
+    private bool bShouldShufflePause = false;
+    [SerializeField]
+    private float shufflePauseTime = 0.1f;
+    private float shuffleTime = 0f;
+    [SerializeField]
+    private Vector2 shuffleForce = new Vector2(15f, 0f);
     
     private bool bIsDead = false;
     public bool IsDead() { return bIsDead; }
@@ -142,6 +160,12 @@ public class Mario : MonoBehaviour {
 
         if (!bIsDead)
         {
+            if (bIsShuffling && bShuffleBlocksInput)
+            {
+                HandleShuffle(Input.GetAxis("Shuffle_" + playerNum));
+                return;
+            }
+
             HandleJump(Input.GetButton("Jump_" + playerNum));
 
             if (!bOnWall && !bIsCrouching)
@@ -150,6 +174,9 @@ public class Mario : MonoBehaviour {
                 HandleMovementWall(Input.GetAxis("Horizontal_" + playerNum));
             else if (bIsSliding && bOnGround)
                 AddHorizontalDrag(groundDragMagic, (slideDragCof * (slideTime / maxSlideTime)) * groundDragCof);
+
+            if(bCanShuffle)
+                HandleShuffle(Input.GetAxis("Shuffle_" + playerNum));
 
             HandlePreciseJump(Input.GetButton("Precise_" + playerNum));
         }
@@ -213,6 +240,33 @@ public class Mario : MonoBehaviour {
         }
     }
 
+    internal protected void HandleShuffle(float _axis)
+    {
+        shuffleTime += Time.fixedDeltaTime;
+
+        if (shuffleTime > shuffleMoveTime && bIsShuffling)
+            bIsShuffling = false;
+        if (shuffleTime > shuffleWaitTime && shuffleDir != 0)
+            shuffleDir = 0;
+
+        if (_axis == 0 && !bIsShuffling && shuffleDir == 0)
+            return;
+
+        if (shuffleTime > shuffleWaitTime)
+        {
+            shuffleTime = 0f;
+            bIsShuffling = true;
+            shuffleDir = (int)_axis;
+        }
+
+        _axis = _axis < 0 ? -1f : 1f;
+
+        if(shuffleTime < shufflePauseTime)
+            rigidbody2D.velocity = new Vector2(0f, Physics2D.gravity.y * Time.fixedDeltaTime * -1f);
+        else if (shuffleTime < shuffleMoveTime)
+            rigidbody2D.velocity = new Vector2(shuffleForce.x * shuffleDir, Physics2D.gravity.y * Time.fixedDeltaTime * -1f);
+    }
+
     internal protected void HandleMovementAlive(float _h)
     {
         if (_h != 0)
@@ -245,22 +299,21 @@ public class Mario : MonoBehaviour {
             bHanging = true;
             animator.Play("WallHang");
 
-            rigidbody2D.gravityScale = 0f;
-            rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
+            rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, Physics2D.gravity.y * Time.fixedDeltaTime * -1f);
         }
         else
         {
             bHanging = false;
             animator.Play("WallSlide");
 
-            rigidbody2D.gravityScale = 1f;
+            if (rigidbody2D.velocity.y > 0)
+                rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
+
             HandleMovementAlive(_h);
         }
 
         if (rigidbody2D.velocity.y < -wallGrindSpeed)
             rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, -wallGrindSpeed);
-        if (rigidbody2D.velocity.y > 0)
-            rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
     }
 
     internal protected void HandlePreciseJump(bool _shouldPrecise)
@@ -323,6 +376,10 @@ public class Mario : MonoBehaviour {
         float xSpeed = rigidbody2D.velocity.x;
         float ySpeed = rigidbody2D.velocity.y;
 
+        // Vector2 max = maxSpeed;
+        // if(bIsShuffling && shuffleDir != 0)
+
+
         if (Mathf.Abs(xSpeed) > maxSpeed.x)
             xSpeed = maxSpeed.x * Mathf.Sign(xSpeed);
         if (Mathf.Abs(ySpeed) > maxSpeed.y)
@@ -350,7 +407,7 @@ public class Mario : MonoBehaviour {
         {
             CheckWall();
 
-            if(!bUnderDirectControl)
+            if(!bOnWall && !bUnderDirectControl)
                 HandleGlide(Input.GetButton("Glide_" + playerNum));
         }
         

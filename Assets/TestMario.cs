@@ -221,17 +221,34 @@ public class TestMario : MonoBehaviour
         }
     }
 
-    bool bGliding = false;
     void JTGlide()
     {
-        if (rigidbody2D.velocity.y <= 0 || bGliding)
+        if (linkedMario.glideTime > linkedMario.maxGlideTime || linkedMario.IsGrounded())
         {
-            if (!bGliding)
-                if (passiveParams.bMarkLocations || curParams.bMarkLocations)
-                    MarkLocation(true, true);
+            if ((passiveParams.bMarkLocations || curParams.bMarkLocations) && !linkedMario.IsGrounded())
+                MarkLocation(true, true);
+
+            curState = TestState.JT_Land;
+            return;
+        }
+
+        if (rigidbody2D.velocity.y <= 0
+            || linkedMario.bIsGliding && linkedMario.glideTime < linkedMario.maxGlideTime)
+        {
+            if (!linkedMario.bIsGliding)
+            {
+                MarkLocation(true, true);
+                Debug.Log("Starting glide");
+            }
 
             linkedMario.HandleGlide(true);
-            bGliding = true;
+        }
+
+        if (((JTParams)curParams).bHoldDir)
+        {
+            bool bGoRight = ((JTParams)curParams).bGoRight;
+
+            linkedMario.HandleMovementAlive(bGoRight ? 1f : -1f);
         }
     }
 
