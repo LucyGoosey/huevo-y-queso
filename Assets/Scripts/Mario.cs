@@ -71,8 +71,16 @@ public class Mario : MonoBehaviour {
     public Vector2 glideVelocityModifier = new Vector2(0.5f, 0.5f);
     public float glideGravityScale = 0.5f;
     public bool bGlideKillsY = true;
-    public Vector2 preciseJumpVelocityModifier = Vector2.zero;
+
+    [SerializeField]
+    private Vector2 preciseJumpVelocityModifier = Vector2.zero;
+    [SerializeField]
+    private int maxPreciseJumps = 1;
+    private int numPreciseJumps = 0;
+    [SerializeField]
+    private bool bSlamAfterPrecise = true;
     private bool bPrecised = false;
+    private bool bSlamming = false;
     public float slamDoublePressTime = 0.1f;
     private float slamPressTime = 0f;
 
@@ -160,6 +168,9 @@ public class Mario : MonoBehaviour {
 
         if (!bIsDead)
         {
+            if (bSlamming)
+                return;
+
             if (bIsShuffling && bShuffleBlocksInput)
             {
                 HandleShuffle(Input.GetAxis("Shuffle_" + playerNum));
@@ -324,15 +335,19 @@ public class Mario : MonoBehaviour {
             {
                 bPrecised = true;
 
-                if (Time.time - slamPressTime > slamDoublePressTime)
+                if (numPreciseJumps < maxPreciseJumps)
                 {
-                    rigidbody2D.velocity = Vector2.Scale(rigidbody2D.velocity, preciseJumpVelocityModifier);
-                    slamPressTime = Time.time;
+                    if (Time.time - slamPressTime > slamDoublePressTime)
+                    {
+                        rigidbody2D.velocity = Vector2.Scale(rigidbody2D.velocity, preciseJumpVelocityModifier);
+                        slamPressTime = Time.time;
+                        ++numPreciseJumps;
+                    }
                 }
-                else
+                else if (Time.time - slamPressTime < slamDoublePressTime || bSlamAfterPrecise)
                 {
                     rigidbody2D.velocity = Vector2.up * maxSpeed.y * -1f;
-                    slamPressTime = 0f;
+                    bSlamming = true;
                 }
             }
         }else
@@ -435,6 +450,10 @@ public class Mario : MonoBehaviour {
             bOnWall = false;
             glideTime = 0f;
             bIsGliding = false;
+
+            numPreciseJumps = 0;
+            slamPressTime = 0f;
+            bSlamming = false;
 
             slideFloatTime = 0f;
 

@@ -31,3 +31,7 @@
 *.db
 *.mtl
 *.max
+
+# Scene ignores
+*.unity
+*.prefab
