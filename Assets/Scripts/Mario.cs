@@ -23,6 +23,10 @@ public class Mario : MonoBehaviour {
     [SerializeField]
     internal protected float airAccelSpeed = 10f;
     [SerializeField]
+    internal protected float groundReverseForce = 2f;
+    [SerializeField]
+    internal protected float airReverseForce = 2.5f;
+    [SerializeField]
     internal protected float groundDragMagic = 0.05f;
     public float groundDragCof = 1f;
     [SerializeField]
@@ -51,6 +55,10 @@ public class Mario : MonoBehaviour {
     private float wallHangTime = 0f;
     [SerializeField]
     private float wallGrindSpeed = 5f;
+    private int fromWall = 0;
+    [SerializeField]
+    private float timeWallKickBlock = 0.5f;
+    private float wallKickTime = 0;
  
     [SerializeField]
     internal protected float longJumpTime = 0.5f;
@@ -103,22 +111,25 @@ public class Mario : MonoBehaviour {
     private float slideFloatTime = 0f;
  
     [SerializeField]
-    private bool bCanShuffle = true;
+    private bool bCanDash = true;
     [SerializeField]
-    private bool bShuffleBlocksInput = false;
+    private int maxDashes = 2;
+    private int numDashes = 0;
+    [SerializeField]
+    private bool bDashBlocksInput = false;
     private bool bIsShuffling = false;
-    private int shuffleDir = 0;
+    private int dashDir = 0;
     [SerializeField]
-    private float shuffleWaitTime = 1f;
+    private float dashWaitTime = 1f;
     [SerializeField]
-    private float shuffleMoveTime = 0.3f;
+    private float dashMoveTime = 0.3f;
     [SerializeField]
-    private bool bShouldShufflePause = false;
+    private bool bShouldDashPause = false;
     [SerializeField]
-    private float shufflePauseTime = 0.1f;
-    private float shuffleTime = 0f;
+    private float dashPauseTime = 0.1f;
+    private float dashTime = 0f;
     [SerializeField]
-    private Vector2 shuffleForce = new Vector2(15f, 0f);
+    private Vector2 dashForce = new Vector2(15f, 0f);
    
     private bool bIsDead = false;
     public bool IsDead() { return bIsDead; }
@@ -171,9 +182,9 @@ public class Mario : MonoBehaviour {
             if (bSlamming)
                 return;
 
-            if (bIsShuffling && bShuffleBlocksInput)
+            if (bIsShuffling && bDashBlocksInput)
             {
-                HandleShuffle(Input.GetAxis("Shuffle_" + playerNum));
+                HandleDash(Input.GetAxis("Dash_" + playerNum));
                 return;
             }
  
@@ -186,8 +197,8 @@ public class Mario : MonoBehaviour {
             else if (bIsSliding && bOnGround)
                 AddHorizontalDrag(groundDragMagic, (slideDragCof * (slideTime / maxSlideTime)) * groundDragCof);
  
-            if(bCanShuffle)
-                HandleShuffle(Input.GetAxis("Shuffle_" + playerNum));
+            if(bCanDash)
+                HandleDash(Input.GetAxis("Dash_" + playerNum));
  
             HandlePreciseJump(Input.GetButton("Precise_" + playerNum));
         }
@@ -216,9 +227,14 @@ public class Mario : MonoBehaviour {
                 else
                 {
                     float dir = transform.localScale.x;
- 
+
                     if (bOnWall)
+                    {
+                        fromWall = (int)Mathf.Sign(dir);
                         dir *= -1f;
+                    }else
+                        fromWall = -(int)Mathf.Sign(dir);
+
                     if(bJumpsStopY)
                         rigidbody2D.velocity = Vector2.zero;
  
@@ -253,37 +269,41 @@ public class Mario : MonoBehaviour {
         }
     }
  
-    internal protected void HandleShuffle(float _axis)
+    internal protected void HandleDash(float _axis)
     {
-        shuffleTime += Time.fixedDeltaTime;
+        dashTime += Time.fixedDeltaTime;
  
-        if (shuffleTime > shuffleMoveTime && bIsShuffling)
+        if (dashTime > dashMoveTime && bIsShuffling)
             bIsShuffling = false;
-        if (shuffleTime > shuffleWaitTime && shuffleDir != 0)
-            shuffleDir = 0;
+        if (dashTime > dashWaitTime && dashDir != 0)
+            dashDir = 0;
  
-        if (_axis == 0 && !bIsShuffling && shuffleDir == 0)
+        if ((_axis == 0 && !bIsShuffling && dashDir == 0)
+            || numDashes > maxDashes)
             return;
- 
-        if (shuffleTime > shuffleWaitTime)
-        {
-            shuffleTime = 0f;
-            bIsShuffling = true;
-            shuffleDir = (int)_axis;
-        }
- 
+
         _axis = _axis < 0 ? -1f : 1f;
  
-        if(shuffleTime < shufflePauseTime)
+        if (dashTime > dashWaitTime)
+        {
+            dashTime = 0f;
+            bIsShuffling = true;
+            dashDir = (int)_axis;
+
+            if(!bOnGround)
+                ++numDashes;
+        }
+ 
+        if(dashTime < dashPauseTime)
             rigidbody2D.velocity = new Vector2(0f, Physics2D.gravity.y * Time.fixedDeltaTime * -1f);
-        else if (shuffleTime < shuffleMoveTime)
-            rigidbody2D.velocity = new Vector2(shuffleForce.x * shuffleDir, Physics2D.gravity.y * Time.fixedDeltaTime * -1f);
+        else if (dashTime < dashMoveTime)
+            rigidbody2D.velocity = new Vector2(dashForce.x * dashDir, Physics2D.gravity.y * Time.fixedDeltaTime * -1f);
     }
  
     internal protected void HandleMovementAlive(float _h)
     {
-        if (_h != 0)
-        {
+        if (_h != 0 && Mathf.Sign(_h) != fromWall)
+        {            
             if (bOnGround)
                 animator.Play("Run");
  
@@ -292,8 +312,12 @@ public class Mario : MonoBehaviour {
             if(Mathf.Sign(_h) != Mathf.Sign(transform.localScale.x))
                 transform.localScale = new Vector3(-1 * transform.localScale.x, transform.localScale.y, transform.localScale.z);
 
+            float aSpeed = (bOnGround ? accelSpeed * groundDragCof : airAccelSpeed);
+            if (Mathf.Sign(_h) != Mathf.Sign(rigidbody2D.velocity.x))
+                aSpeed *= bOnGround ? groundReverseForce : airReverseForce;
+
             if (_h * rigidbody2D.velocity.x < maxSpeed.x)
-                rigidbody2D.AddForce(Vector2.right * (bOnGround ? accelSpeed * groundDragCof : airAccelSpeed) * _h);
+                rigidbody2D.AddForce(Vector2.right * aSpeed * _h);
         }
         else if (bOnGround)
             AddHorizontalDrag(groundDragMagic, groundDragCof);
@@ -395,7 +419,7 @@ public class Mario : MonoBehaviour {
         float ySpeed = rigidbody2D.velocity.y;
  
         // Vector2 max = maxSpeed;
-        // if(bIsShuffling && shuffleDir != 0)
+        // if(bIsShuffling && dashDir != 0)
  
  
         if (Mathf.Abs(xSpeed) > maxSpeed.x)
@@ -412,6 +436,14 @@ public class Mario : MonoBehaviour {
  
     void Update()
     {
+        if (fromWall != 0)
+            wallKickTime += Time.deltaTime;
+        if (wallKickTime > timeWallKickBlock)
+        {
+            fromWall = 0;
+            wallKickTime = 0;
+        }
+
         if (bIsDead)
         {
             if (Input.GetButtonDown("Bubble_" + playerNum))
@@ -460,10 +492,14 @@ public class Mario : MonoBehaviour {
  
             wallHangTime = 0f;
             bHanging = false;
+
+            numDashes = 0;
  
             bOnWall = false;
             glideTime = 0f;
             bIsGliding = false;
+            fromWall = 0;
+            wallKickTime = 0;
  
             numPreciseJumps = 0;
             slamPressTime = 0f;
