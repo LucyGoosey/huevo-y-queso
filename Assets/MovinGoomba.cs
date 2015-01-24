@@ -19,8 +19,8 @@ public class MovinGoomba : Enemy {
         {
             transform.position = Vector2.Lerp(transform.position, target.position, t);
             t += speed;
-            if (t >= 1)
-                t = 1;
+            if (t >= 1||t<=0)
+                speed=-speed;
         }
 	}
 
