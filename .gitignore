@@ -32,6 +32,13 @@
 *.mtl
 *.max
 
-# Scene ignores
+# Unity ignores
+*.asset
 *.unity
 *.prefab
+*.controller
+*.anim
+
+# Python ignores
+*.py
+*.7z
