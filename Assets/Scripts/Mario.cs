@@ -308,7 +308,7 @@ public class Mario : MonoBehaviour {
         if(_h != 0)
             _h = _h < 0 ? -1 : 1;
  
-        if (_h == Mathf.Sign(transform.localScale.x) && wallHangTime < maxWallHangTime)
+        if (_h != 0 && _h == Mathf.Sign(transform.localScale.x) && wallHangTime < maxWallHangTime)
         {
             bHanging = true;
             animator.Play("WallHang");
