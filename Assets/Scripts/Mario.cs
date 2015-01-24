@@ -23,6 +23,10 @@ public class Mario : MonoBehaviour {
     [SerializeField]
     internal protected float airAccelSpeed = 10f;
     [SerializeField]
+    internal protected float groundReverseForce = 2f;
+    [SerializeField]
+    internal protected float airReverseForce = 2.5f;
+    [SerializeField]
     internal protected float groundDragMagic = 0.05f;
     public float groundDragCof = 1f;
     [SerializeField]
@@ -51,6 +55,10 @@ public class Mario : MonoBehaviour {
     private float wallHangTime = 0f;
     [SerializeField]
     private float wallGrindSpeed = 5f;
+    private int fromWall = 0;
+    [SerializeField]
+    private float timeWallKickBlock = 0.5f;
+    private float wallKickTime = 0;
  
     [SerializeField]
     internal protected float longJumpTime = 0.5f;
@@ -216,9 +224,14 @@ public class Mario : MonoBehaviour {
                 else
                 {
                     float dir = transform.localScale.x;
- 
+
                     if (bOnWall)
+                    {
+                        fromWall = (int)Mathf.Sign(dir);
                         dir *= -1f;
+                    }else
+                        fromWall = -(int)Mathf.Sign(dir);
+
                     if(bJumpsStopY)
                         rigidbody2D.velocity = Vector2.zero;
  
@@ -282,8 +295,8 @@ public class Mario : MonoBehaviour {
  
     internal protected void HandleMovementAlive(float _h)
     {
-        if (_h != 0)
-        {
+        if (_h != 0 && Mathf.Sign(_h) != fromWall)
+        {            
             if (bOnGround)
                 animator.Play("Run");
  
@@ -292,8 +305,12 @@ public class Mario : MonoBehaviour {
             if(Mathf.Sign(_h) != Mathf.Sign(transform.localScale.x))
                 transform.localScale = new Vector3(-1 * transform.localScale.x, transform.localScale.y, transform.localScale.z);
 
+            float aSpeed = (bOnGround ? accelSpeed * groundDragCof : airAccelSpeed);
+            if (Mathf.Sign(_h) != Mathf.Sign(rigidbody2D.velocity.x))
+                aSpeed *= bOnGround ? groundReverseForce : airReverseForce;
+
             if (_h * rigidbody2D.velocity.x < maxSpeed.x)
-                rigidbody2D.AddForce(Vector2.right * (bOnGround ? accelSpeed * groundDragCof : airAccelSpeed) * _h);
+                rigidbody2D.AddForce(Vector2.right * aSpeed * _h);
         }
         else if (bOnGround)
             AddHorizontalDrag(groundDragMagic, groundDragCof);
@@ -412,6 +429,14 @@ public class Mario : MonoBehaviour {
  
     void Update()
     {
+        if (fromWall != 0)
+            wallKickTime += Time.deltaTime;
+        if (wallKickTime > timeWallKickBlock)
+        {
+            fromWall = 0;
+            wallKickTime = 0;
+        }
+
         if (bIsDead)
         {
             if (Input.GetButtonDown("Bubble_" + playerNum))
@@ -464,6 +489,8 @@ public class Mario : MonoBehaviour {
             bOnWall = false;
             glideTime = 0f;
             bIsGliding = false;
+            fromWall = 0;
+            wallKickTime = 0;
  
             numPreciseJumps = 0;
             slamPressTime = 0f;
