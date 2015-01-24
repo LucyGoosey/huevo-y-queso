@@ -1,0 +1,10 @@
+Control Tweaks:
+-Jumping forgiving
+-Climbing Up
+-Edge balancing
+
+Test Mario:
+-Finish UI
+
+Level Scripting:
+-Timed Triggers
