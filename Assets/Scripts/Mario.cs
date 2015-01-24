@@ -440,6 +440,8 @@ public class Mario : MonoBehaviour {
         midGround = Physics2D.Linecast(transform.position, groundPosMid.position, 1 << LayerMask.NameToLayer("Ground")).collider;
         leftGround = Physics2D.Linecast(transform.position, groundPosLeft.position, 1 << LayerMask.NameToLayer("Ground")).collider;
         rightGround = Physics2D.Linecast(transform.position, groundPosRight.position, 1 << LayerMask.NameToLayer("Ground")).collider;
+
+        bOnGround = midGround != null || leftGround != null || rightGround != null;
  
         if (bOnGround && !wasOnGround)
         {
