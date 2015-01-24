@@ -285,8 +285,9 @@ public class Mario : MonoBehaviour {
                 animator.Play("Run");
  
             _h = _h < 0 ? -1 : 1;
- 
-            transform.localScale = new Vector3(_h, transform.localScale.y, transform.localScale.z);
+            
+            if(Mathf.Sign(_h) != Mathf.Sign(transform.localScale.x))
+                transform.localScale = new Vector3(-1 * transform.localScale.x, transform.localScale.y, transform.localScale.z);
 
             if (_h * rigidbody2D.velocity.x < maxSpeed.x)
                 rigidbody2D.AddForce(Vector2.right * (bOnGround ? accelSpeed * groundDragCof : airAccelSpeed) * _h);
