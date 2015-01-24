@@ -1,11 +1,20 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class Trigger : MonoBehaviour {
+public class Trigger : MonoBehaviour
+{
+
+    public MovinPlatform[] platforms;
 
     void OnTriggerEnter2D(Collider2D _coll)
     {
+        if (platforms == null)
+            return;
+
         if (_coll.tag == "Player")
-            Debug.Log("Player in trigger.");
+        {
+            for (int i = 0; i < platforms.Length; ++i)
+                platforms[i].bShouldMove = true;
+        }
     }
 }

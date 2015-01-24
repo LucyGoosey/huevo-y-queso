@@ -235,6 +235,9 @@ public class Mario : MonoBehaviour {
  
                 bJumpHeld = true;
                 jumpHeldTime = Time.time;
+
+                if (transform.parent != null)
+                    transform.parent = null;
  
                 ++jumps;
             }

@@ -8,6 +8,7 @@ public class MovinPlatform : MonoBehaviour {
     public float speed = 0.01f;
     public bool bShouldMove = false;
     public Vector3 startpos;
+    public bool bShouldRepeat;
 
 	// Use this for initialization
 	void Start () {
@@ -21,8 +22,10 @@ public class MovinPlatform : MonoBehaviour {
         {
             transform.position = Vector2.Lerp(startpos, target.position, t);
             t += speed;
-            if (t >= 1||t<=0)
-                speed=-speed;
+            if (t >= 1 || t <= 0)
+            {if (bShouldRepeat)
+                speed = -speed;
+            }
         }
 	}
 
