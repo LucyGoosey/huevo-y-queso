@@ -368,10 +368,12 @@ public class Mario : MonoBehaviour {
                     {
                         rigidbody2D.velocity = Vector2.Scale(rigidbody2D.velocity, preciseJumpVelocityModifier);
                         slamPressTime = Time.time;
-                        ++numPreciseJumps;
+                        if(!bOnGround)
+                            ++numPreciseJumps;
                     }
                 }
-                else if (Time.time - slamPressTime < slamDoublePressTime || bSlamAfterPrecise)
+                else if ((Time.time - slamPressTime < slamDoublePressTime || bSlamAfterPrecise)
+                        && !bOnGround)
                 {
                     rigidbody2D.velocity = Vector2.up * maxSpeed.y * -1f;
                     bSlamming = true;
