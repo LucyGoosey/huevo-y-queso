@@ -45,3 +45,7 @@
 # Python ignores
 *.py
 *.xz
+*.7z
+*.tar
+*.zip
+*.rar
