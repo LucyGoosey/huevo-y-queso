@@ -15,6 +15,7 @@
 /bin
 /bin/*
 /*_Data
+/*_Data/*
 *.exe
 
 # Asset Ignores
@@ -32,6 +33,14 @@
 *.mtl
 *.max
 
-# Scene ignores
+# Unity ignores
+*.asset
 *.unity
 *.prefab
+*.controller
+*.anim
+/ProjectSettings/*
+
+# Python ignores
+*.py
+*.xz
