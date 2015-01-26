@@ -10,23 +10,27 @@ public class MovinPlatform : MonoBehaviour {
     public Vector3 startpos;
     public bool bShouldRepeat;
 
-	void Start ()
-    {
+	// Use this for initialization
+	void Start () {
         startpos = transform.position;
+	
 	}
 	
-	void FixedUpdate () {
+	// Update is called once per frame
+	void Update () {
         if (bShouldMove)
         {
             transform.position = Vector2.Lerp(startpos, target.position, t);
             t += speed;
             if (t >= 1 || t <= 0)
-            {
-                t = t >= 1 ? 1 : 0;
-
-                if (bShouldRepeat)
-                    speed = -speed;
+            {if (bShouldRepeat)
+                speed = -speed;
             }
         }
 	}
+
+    void OnTriggerEnter()
+    {
+
+    }
 }
