@@ -39,6 +39,7 @@
 *.prefab
 *.controller
 *.anim
+*.meta
 /ProjectSettings/*
 
 # Python ignores
