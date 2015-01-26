@@ -67,8 +67,8 @@ public class Mario : MonoBehaviour {
     private bool bJumpOffWall = false;
  
     [SerializeField]
-    private int maxJumps = 2;
-    private int jumps = 0;
+    private int maxExtraJumps = 1;
+    private int extraJumps = 0;
     public bool bExtraJumpStopsFall = true;
     public bool bJumpsStopY = true;
  
@@ -211,17 +211,19 @@ public class Mario : MonoBehaviour {
         if (!bJumpHeld)
         {
             if (_isJumping
-                && ((bOnGround || (!bOnGround && jumps < maxJumps))
+                && ((bOnGround || (!bOnGround && extraJumps < maxExtraJumps))
                     || bOnWall || bNearWall))
             {
                 animator.Play("Jump");
- 
-                if ((jumps > 0 && bExtraJumpStopsFall) || bJumpsStopY)
-                        rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
+                rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
  
                 if (!bOnWall && !bNearWall)
                 {
                     rigidbody2D.AddForce(new Vector2(0f, jumpForce));
+
+                    if (!bOnGround)
+                        ++extraJumps;
+
                     bOnGround = false;
                 }
                 else
@@ -246,7 +248,7 @@ public class Mario : MonoBehaviour {
  
                     rigidbody2D.gravityScale = 1f;
  
-                    jumps = maxJumps;
+                    // extraJumps = maxExtraJumps;
                 }
  
                 bJumpHeld = true;
@@ -254,12 +256,10 @@ public class Mario : MonoBehaviour {
 
                 if (transform.parent != null)
                     transform.parent = null;
- 
-                ++jumps;
             }
         }
         else
-            if (_isJumping && Time.time - jumpHeldTime < longJumpTime && jumps == 1)
+            if (_isJumping && Time.time - jumpHeldTime < longJumpTime && extraJumps == 0)
                 rigidbody2D.AddForce(new Vector2(0f, !bJumpOffWall ? longJumpForce : longWallKickForce));
  
         if (!_isJumping)
@@ -488,7 +488,7 @@ public class Mario : MonoBehaviour {
             else
                 transform.parent = rightGround.transform;
 
-            jumps = 0;
+            extraJumps = 0;
  
             wallHangTime = 0f;
             bHanging = false;
