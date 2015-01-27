@@ -2,37 +2,32 @@ import os
 import tarfile
 import lzma
 
-metas = []
+from datetime import datetime
 
+# Name the file ProjectName_HourMinuteWeekdayMonthDayMonth and add _Seconds if the file already exists
+filename = "zip_" + os.path.split(os.getcwd())[1] + datetime.now().strftime("-%H%M%a%d%b") + ".tar.xz";
+if os.path.isfile(filename):
+    filename =  filename[:-7] + datetime.now().strftime("_%S") + ".tar.xz";
+print("Creating " + filename + "\n");
+    
+# Grab the path's of the files we need to compress
+compress = [];
 for root, dirs, files in os.walk("Assets"):
     for file in files:
-        if ".meta" in file:
-            if root == "":
-                metas.append(file)
-            else:
-                metas.append(root + "/" + file)
+        if file[-3:].lower() != ".cs":  # Compress everything but .cs files
+                compress.append(root + "/" + file);
+for root, dirs, files in os.walk("ProjectSettings"):
+    for file in files:
+        compress.append(root + "/" + file);
 
-tarFilename = "ZippedUp.tar.xz"
+# Open an lzma file to perform compression, and a tar file as we have to compress from memory
+xzFile = lzma.LZMAFile(filename, mode="w");
+with tarfile.open(mode="w", fileobj=xzFile) as tarFile:                
+    for file in compress:
+        print("Adding " + file.replace("\\", "/"));
+        tarFile.add(file);
+xzFile.close();
 
-if(os.path.isfile(tarFilename)):
-    print("Old ZippedUp.tar.xz found! Deleting...")
-    os.remove(tarFilename)
-
-xzFile = lzma.LZMAFile(tarFilename, mode="w")
-
-with tarfile.open(mode="w", fileobj=xzFile) as tar_xz_file:
-    print("Adding project settings...")
-    tar_xz_file.add("ProjectSettings/")
-    print("Adding scenes...")
-    tar_xz_file.add("Assets/Scenes/")
-    print("Adding prefabs...")
-    tar_xz_file.add("Assets/Prefabs/")
-    print("Adding sprites...")
-    tar_xz_file.add("Assets/Sprites/")
-	
-    print("Adding metas...")
-    for meta in metas:
-        tar_xz_file.add(meta);
-	
-xzFile.close()
-print("All done!")
+# We're all done! Nothing to do but wait for the user to press enter, just so they have time to view the lovely output.
+print("All done!\n");
+input("Press any key to close...");
