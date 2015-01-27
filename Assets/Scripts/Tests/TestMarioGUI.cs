@@ -7,6 +7,7 @@ using MarioTests;
 public class TestMarioGUI : MonoBehaviour {
 
     Toggle bMarkLocations;
+    Toggle bAlwaysMarkLocations;
 
     public class JTGUIParams
     {
@@ -42,8 +43,9 @@ public class TestMarioGUI : MonoBehaviour {
         debugMenu = GameObject.Find("DebugGUI");
 
         testButton = GameObject.Find("DbgTest").GetComponent<Button>();
+        bAlwaysMarkLocations = GameObject.Find("DbgMarkLocations").GetComponent<Toggle>();
 
-        bMarkLocations = GameObject.Find("DbgMarkLocations").GetComponent<Toggle>();
+        bMarkLocations = GameObject.Find("JTMarkLocations").GetComponent<Toggle>();
         jtParams.bGoRight = GameObject.Find("JTGoRight").GetComponent<Toggle>();
         jtParams.bHoldDir = GameObject.Find("JTHoldDir").GetComponent<Toggle>();
         jtParams.bLongJump = GameObject.Find("JTLongJump").GetComponent<Toggle>();
@@ -55,6 +57,8 @@ public class TestMarioGUI : MonoBehaviour {
     {
         if (debugMenu == null || debugToggle == null)
             return;
+
+        tMario.passiveParams.bMarkLocations = bAlwaysMarkLocations.isOn;
 
         if (tMario.IsTesting() && !bIsTesting)
         {
@@ -83,7 +87,7 @@ public class TestMarioGUI : MonoBehaviour {
     {
         JTParams parms = ((JTParams)tMario.GetTestParameters(TestName.T_Jump));
 
-        parms.bMarkLocations = bMarkLocations.isOn;
+        parms.bMarkLocations = bMarkLocations.isOn || bAlwaysMarkLocations.isOn;
         parms.bGoRight = jtParams.bGoRight.isOn;
         parms.bLongJump = jtParams.bLongJump.isOn;
         parms.bDoubleJump = jtParams.bDoubleJump.isOn;

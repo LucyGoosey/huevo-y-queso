@@ -36,6 +36,12 @@ public class TestMario : MonoBehaviour
 
     public void LinkMario(Mario _m) { linkedMario = _m; }
 
+    public void MoveToSelectedPath()
+    {
+        if(selectedPath != null)
+            linkedMario.transform.position = selectedPath.transform.Find("Mario pos").position;
+    }
+
     public bool IsTesting() { return curTest != TestName.T_None && curState != TestState.TS_None; }
 
     void Start()
