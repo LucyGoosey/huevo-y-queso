@@ -229,17 +229,13 @@ public class Mario : MonoBehaviour {
                 else
                 {
                     float dir = transform.localScale.x;
+                    dir = Mathf.Sign(dir);
 
+                    fromWall = (int)dir;
                     if (bOnWall)
-                    {
-                        fromWall = (int)Mathf.Sign(dir);
                         dir *= -1f;
-                    }else
-                        fromWall = -(int)Mathf.Sign(dir);
 
-                    if(bJumpsStopY)
-                        rigidbody2D.velocity = Vector2.zero;
- 
+                    rigidbody2D.velocity = Vector2.zero;
                     rigidbody2D.AddForce(new Vector2(wallKickForce.x * dir, wallKickForce.y));
  
                     bOnWall = false;
@@ -247,7 +243,8 @@ public class Mario : MonoBehaviour {
                     bJumpOffWall = true;
  
                     rigidbody2D.gravityScale = 1f;
- 
+                    
+                    // Uncomment to make mario unable to double jump after wall jump
                     // extraJumps = maxExtraJumps;
                 }
  
@@ -518,8 +515,18 @@ public class Mario : MonoBehaviour {
     private void CheckWall()
     {
         bool wasOnWall = bOnWall;
-        bOnWall = Physics2D.Linecast(transform.position, wallPos.position, 1 << LayerMask.NameToLayer("Ground"));
-        bNearWall = bOnWall || Physics2D.Linecast(transform.position, nearWallPos.position, 1 << LayerMask.NameToLayer("Ground"));
+
+        Collider2D onWall, nearWall;
+        onWall = Physics2D.Linecast(transform.position, wallPos.position, 1 << LayerMask.NameToLayer("Ground")).collider;
+        nearWall = Physics2D.Linecast(transform.position, nearWallPos.position, 1 << LayerMask.NameToLayer("Ground")).collider;
+
+        bOnWall = onWall != null;
+        bNearWall = bOnWall || nearWall != null;
+
+        if (bOnWall)
+            transform.parent = onWall.transform;
+        else if (bNearWall)
+            transform.parent = nearWall.transform;
  
         if (bOnWall && bHanging)
             wallHangTime += Time.fixedDeltaTime;
