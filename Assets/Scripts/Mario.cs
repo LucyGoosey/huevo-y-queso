@@ -15,28 +15,20 @@ public class Mario : MonoBehaviour {
     public int playerNum = 1;
  
     public float gravityScale = 1f;
+
+    // Start Variable Block
  
-    [SerializeField]
-    internal protected Vector2 maxSpeed = new Vector2(7.5f, 10f);
-    [SerializeField]
-    internal protected float accelSpeed = 20f;
-    [SerializeField]
-    internal protected float airAccelSpeed = 10f;
-    [SerializeField]
-    internal protected float groundReverseForce = 2f;
-    [SerializeField]
-    internal protected float airReverseForce = 2.5f;
-    [SerializeField]
-    internal protected float groundDragMagic = 0.05f;
+    public Vector2 maxSpeed = new Vector2(7.5f, 10f);
+    public float accelSpeed = 20f;
+    public float airAccelSpeed = 10f;
+    public float groundReverseForce = 2f;
+    public float airReverseForce = 2.5f;
+    public float groundDragMagic = 0.05f;
     public float groundDragCof = 1f;
-    [SerializeField]
-    internal protected float airDragMagic = 0f;
-    [SerializeField]
-    internal protected float jumpForce = 500f;
-    [SerializeField]
-    internal protected float longJumpForce = 0.1f;
-    [SerializeField]
-    internal protected float bubblePopDistance = 4f;
+    public float airDragMagic = 0f;
+    public float jumpForce = 500f;
+    public float longJumpForce = 0.1f;
+    public float bubblePopDistance = 4f;
  
     private Transform groundPosMid;
     private Transform groundPosLeft;
@@ -45,8 +37,7 @@ public class Mario : MonoBehaviour {
     public bool IsGrounded() { return bOnGround; }
     private bool bWantsToJump = false;
     private int wantedToJumpForFrames = 0;
-    [SerializeField]
-    private int maxFramesToForgiveJump = 3;
+    public int maxFramesToForgiveJump = 3;
  
     private Transform wallPos;
     private Transform nearWallPos;
@@ -54,54 +45,42 @@ public class Mario : MonoBehaviour {
     public bool IsOnwall() { return bOnWall; }
     private bool bNearWall = false;
     private bool bHanging = false;
-    [SerializeField]
-    private float maxWallHangTime = 2.5f;
+    public float maxWallHangTime = 2.5f;
     private float wallHangTime = 0f;
-    [SerializeField]
-    private float wallGrindSpeed = 5f;
+    public float wallGrindSpeed = 5f;
     private int fromWall = 0;
-    [SerializeField]
-    private float timeWallKickBlock = 0.5f;
+    public float timeWallKickBlock = 0.5f;
     private float wallKickTime = 0;
  
-    [SerializeField]
-    internal protected float longJumpTime = 0.5f;
+    public float longJumpTime = 0.5f;
     private bool bJumpHeld = false;
     internal protected float jumpHeldTime = 0;
     private bool bJumpOffWall = false;
  
-    [SerializeField]
-    private int maxExtraJumps = 1;
+    public int maxExtraJumps = 1;
     private int extraJumps = 0;
     public bool bExtraJumpStopsFall = true;
     public bool bJumpsStopY = true;
  
-    [SerializeField]
-    internal protected float maxGlideTime = 2f;
+    public float maxGlideTime = 2f;
     internal protected float glideTime = 0f;
     internal protected bool bIsGliding = false;
     public Vector2 glideVelocityModifier = new Vector2(0.5f, 0.5f);
     public float glideGravityScale = 0.5f;
     public bool bGlideKillsY = true;
 
-    [SerializeField]
-    private Vector2 preciseJumpVelocityModifier = Vector2.zero;
-    [SerializeField]
-    private int maxPreciseJumps = 1;
+    public Vector2 preciseJumpVelocityModifier = Vector2.zero;
+    public int maxPreciseJumps = 1;
     private int numPreciseJumps = 0;
-    [SerializeField]
-    private bool bSlamAfterPrecise = true;
+    public bool bSlamAfterPrecise = true;
     private bool bPrecised = false;
     private bool bSlamming = false;
     public float slamDoublePressTime = 0.1f;
     private float slamPressTime = 0f;
  
-    [SerializeField]
-    private float maxSlideTime = 1f;
-    [SerializeField]
-    internal protected float slideDragCof = 0.75f;
-    [SerializeField]
-    private float minSlideSpeed = 0.75f;
+    public float maxSlideTime = 1f;
+    public float slideDragCof = 0.75f;
+    public float minSlideSpeed = 0.75f;
     private float slideTime = 0f;
     private float slideVel = 0f;
     private bool bIsCrouching = false;
@@ -114,39 +93,29 @@ public class Mario : MonoBehaviour {
     public float slideFalloffTime = 0.3f;
     private float slideFloatTime = 0f;
  
-    [SerializeField]
-    private bool bCanDash = true;
-    [SerializeField]
-    private int maxDashes = 2;
+    public bool bCanDash = true;
+    public int maxDashes = 2;
     private int numDashes = 0;
-    [SerializeField]
-    private bool bDashBlocksInput = false;
+    public bool bDashBlocksInput = false;
     private bool bIsShuffling = false;
     private int dashDir = 0;
-    [SerializeField]
-    private float dashWaitTime = 1f;
-    [SerializeField]
-    private float dashMoveTime = 0.3f;
-    [SerializeField]
-    private bool bShouldDashPause = false;
-    [SerializeField]
-    private float dashPauseTime = 0.1f;
+    public float dashWaitTime = 1f;
+    public float dashMoveTime = 0.3f;
+    public bool bShouldDashPause = false;
+    public float dashPauseTime = 0.1f;
     private float dashTime = 0f;
-    [SerializeField]
-    private Vector2 dashForce = new Vector2(15f, 0f);
+    public Vector2 dashForce = new Vector2(15f, 0f);
    
     private bool bIsDead = false;
     public bool IsDead() { return bIsDead; }
  
-    [SerializeField]
-    private Vector2 wallKickForce = new Vector2(300f, 250f);
-    [SerializeField]
-    private float longWallKickForce = 5f;
+    public Vector2 wallKickForce = new Vector2(300f, 250f);
+    public float longWallKickForce = 5f;
  
-    [SerializeField]
-    internal protected float deadAccelSpeed = 40f;
-    [SerializeField]
-    internal protected float deadMoveSpeed = 15f;
+    public float deadAccelSpeed = 40f;
+    public float deadMoveSpeed = 15f;
+
+    // End Variable Block
  
     public float standStillSpeed = 0.01f;
  
