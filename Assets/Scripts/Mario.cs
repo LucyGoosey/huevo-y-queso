@@ -43,6 +43,10 @@ public class Mario : MonoBehaviour {
     private Transform groundPosRight;
     private bool bOnGround = false;
     public bool IsGrounded() { return bOnGround; }
+    private bool bWantsToJump = false;
+    private int wantedToJumpForFrames = 0;
+    [SerializeField]
+    private int maxFramesToForgiveJump = 3;
  
     private Transform wallPos;
     private Transform nearWallPos;
@@ -208,32 +212,63 @@ public class Mario : MonoBehaviour {
  
     internal protected void HandleJump(bool _isJumping)
     {
+        if (_isJumping)
+        {
+            bWantsToJump = true;
+            wantedToJumpForFrames = 0;
+        }
+        else if (bWantsToJump)
+        {
+            ++wantedToJumpForFrames;
+            if (wantedToJumpForFrames > maxFramesToForgiveJump)
+                bWantsToJump = false;
+        }
+
         if (!bJumpHeld)
         {
-            if (_isJumping
-                && ((bOnGround || (!bOnGround && extraJumps < maxExtraJumps))
+            if (_isJumping || bWantsToJump
+                && ((bOnGround || (!bOnGround && extraJumps < maxExtraJumps && _isJumping))
                     || bOnWall || bNearWall))
             {
                 animator.Play("Jump");
-                rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
  
                 if (!bOnWall && !bNearWall)
                 {
-                    rigidbody2D.AddForce(new Vector2(0f, jumpForce));
+                    if (bOnGround || (!bOnGround && extraJumps < maxExtraJumps && _isJumping))
+                    {
+                        Vector3 gPos = transform.position + (Vector3)(Vector2.Scale((transform.position - groundPosMid.position).normalized, rigidbody2D.velocity * (maxFramesToForgiveJump * Time.fixedDeltaTime)));
+                        bool bNearGround = Physics2D.Linecast(transform.position, gPos, 1 << LayerMask.NameToLayer("Ground"));
+                        gPos = transform.position + (Vector3)(Vector2.Scale((transform.position - groundPosLeft.position).normalized, rigidbody2D.velocity * (maxFramesToForgiveJump * Time.fixedDeltaTime)));
+                        bNearGround |= Physics2D.Linecast(transform.position, gPos, 1 << LayerMask.NameToLayer("Ground"));
+                        gPos = transform.position + (Vector3)(Vector2.Scale((transform.position - groundPosRight.position).normalized, rigidbody2D.velocity * (maxFramesToForgiveJump * Time.fixedDeltaTime)));
+                        bNearGround |= Physics2D.Linecast(transform.position, gPos, 1 << LayerMask.NameToLayer("Ground"));
 
-                    if (!bOnGround)
-                        ++extraJumps;
+                        if (bNearGround)
+                            return;
 
-                    bOnGround = false;
+                        rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, 0f);
+                        rigidbody2D.AddForce(new Vector2(0f, jumpForce));
+
+                        if(!bOnGround)
+                            ++extraJumps;
+
+                        if (_isJumping)
+                        {
+                            bJumpHeld = true;
+                            jumpHeldTime = Time.time;
+                        }
+                    }
                 }
-                else
+                else if(_isJumping)
                 {
                     float dir = transform.localScale.x;
-                    dir = Mathf.Sign(dir);
 
-                    fromWall = (int)dir;
                     if (bOnWall)
+                    {
+                        fromWall = (int)Mathf.Sign(dir);
                         dir *= -1f;
+                    }else
+                        fromWall = -(int)Mathf.Sign(dir);
 
                     rigidbody2D.velocity = Vector2.zero;
                     rigidbody2D.AddForce(new Vector2(wallKickForce.x * dir, wallKickForce.y));
@@ -243,13 +278,11 @@ public class Mario : MonoBehaviour {
                     bJumpOffWall = true;
  
                     rigidbody2D.gravityScale = 1f;
-                    
-                    // Uncomment to make mario unable to double jump after wall jump
-                    // extraJumps = maxExtraJumps;
-                }
  
-                bJumpHeld = true;
-                jumpHeldTime = Time.time;
+                    extraJumps = maxExtraJumps;
+                }
+
+                bWantsToJump = false;
 
                 if (transform.parent != null)
                     transform.parent = null;
@@ -365,10 +398,12 @@ public class Mario : MonoBehaviour {
                     {
                         rigidbody2D.velocity = Vector2.Scale(rigidbody2D.velocity, preciseJumpVelocityModifier);
                         slamPressTime = Time.time;
-                        ++numPreciseJumps;
+                        if(!bOnGround)
+                            ++numPreciseJumps;
                     }
                 }
-                else if (Time.time - slamPressTime < slamDoublePressTime || bSlamAfterPrecise)
+                else if ((Time.time - slamPressTime < slamDoublePressTime || bSlamAfterPrecise)
+                        && !bOnGround)
                 {
                     rigidbody2D.velocity = Vector2.up * maxSpeed.y * -1f;
                     bSlamming = true;
@@ -515,18 +550,8 @@ public class Mario : MonoBehaviour {
     private void CheckWall()
     {
         bool wasOnWall = bOnWall;
-
-        Collider2D onWall, nearWall;
-        onWall = Physics2D.Linecast(transform.position, wallPos.position, 1 << LayerMask.NameToLayer("Ground")).collider;
-        nearWall = Physics2D.Linecast(transform.position, nearWallPos.position, 1 << LayerMask.NameToLayer("Ground")).collider;
-
-        bOnWall = onWall != null;
-        bNearWall = bOnWall || nearWall != null;
-
-        if (bOnWall)
-            transform.parent = onWall.transform;
-        else if (bNearWall)
-            transform.parent = nearWall.transform;
+        bOnWall = Physics2D.Linecast(transform.position, wallPos.position, 1 << LayerMask.NameToLayer("Ground"));
+        bNearWall = bOnWall || Physics2D.Linecast(transform.position, nearWallPos.position, 1 << LayerMask.NameToLayer("Ground"));
  
         if (bOnWall && bHanging)
             wallHangTime += Time.fixedDeltaTime;
