@@ -90,32 +90,31 @@ public class Huevo : MonoBehaviour
             start.y += yD;
 
         RaycastHit2D groundHit = new RaycastHit2D();
+        int center = (int)(_xDir != 0 ? Mathf.Floor(linecastCount.x / 2) : Mathf.Floor(linecastCount.y / 2));
         for (int i = 0; i < (_xDir != 0 ? linecastCount.x : linecastCount.y); ++i)
         {
-            Vector2 end = Vector2.zero;
-            if (_xDir != 0)
-                end = start + new Vector2(xD * _xDir, 0f);
-            else if(_yDir != 0)
-                end = start + new Vector2(0f, yD * _yDir);
+            int index = center + (i % 2 == 0 ? i / 2 : -((i / 2) + 1));
 
-            groundHit = Physics2D.Linecast(start, end, 1 << LayerMask.NameToLayer("Ground"));
+            Vector2 s = _xDir != 0 ? start + new Vector2(0f, (yD * index)) : start + new Vector2((xD * index), 0f);
+            Vector2 e = Vector2.zero;
+            if (_xDir != 0)
+                e = s + new Vector2(xD * _xDir, 0f);
+            else if(_yDir != 0)
+                e = s + new Vector2(0f, yD * _yDir);
+
+            groundHit = Physics2D.Linecast(s, e, 1 << LayerMask.NameToLayer("Ground"));
 
             #if UNITY_DEBUG
             if (groundHit)
             {
-                Debug.DrawLine(start, end, Color.red);
+                Debug.DrawLine(s, e, Color.red);
                 break;
             }else
-                Debug.DrawLine(start, end);
+                Debug.DrawLine(s, e);
             #else
             if (groundHit)
                 break;
             #endif
-
-            if (_xDir == 0)
-                start.x += xD;
-            else if (_yDir == 0)
-                start.y += yD;
         }
 
         if (groundHit)
