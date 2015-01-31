@@ -37,95 +37,103 @@ public class Huevo : MonoBehaviour
     #region FixedUpdate
     void FixedUpdate()
     {
-        // Calculate velocity
-
-        worldHitBox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
-        velocity += gravity * Time.deltaTime;
-        if (inHandler.Horizontal != 0f)
-            velocity.x += accel * inHandler.Horizontal * Time.deltaTime;
+        CalculateVelocity();
 
         // Begin physics check
 
-        // TODO Figure out this business
-        GroundCheckVertical(false);
-        GroundCheckVertical(true);
+        // TODO Prioritise direction check order depending on velocity
+        GroundCheck(0, -1);
+        GroundCheck(0, 1);
+        GroundCheck(-1, 0);
+        GroundCheck(1, 0);
 
-        GroundCheckHorizontal(false);
-        GroundCheckHorizontal(true);
-
-        if (velocity.x > maxSpeed.x)
-            velocity.x = maxSpeed.x;
-        if (velocity.y > maxSpeed.y)
-            velocity.y = maxSpeed.y;
+        // Limit the velocity to the max speed
+        if (Mathf.Abs(velocity.x) > maxSpeed.x)
+            velocity.x = maxSpeed.x * Mathf.Sign(velocity.x);
+        if (Mathf.Abs(velocity.y) > maxSpeed.y)
+            velocity.y = maxSpeed.y * Mathf.Sign(velocity.y);
 
         transform.position += (Vector3)(velocity * Time.deltaTime);
+        worldHitBox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
     }
 
-    private void GroundCheckVertical(bool bUp)
+    private void CalculateVelocity()
     {
-        Rect testHitbox = worldHitBox;
-        testHitbox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
-        testHitbox.center += velocity * Time.deltaTime;
+        velocity += gravity * Time.deltaTime;
 
-        Vector2 start = new Vector2(testHitbox.xMin, testHitbox.center.y);
-        float xD = testHitbox.width / (linecastCount.x + 1);
-        float yD = (testHitbox.height / 2f) + groundDistanceCheck;
-        start.x += xD;
+        // Check for horizontal input, and apply acceleration if necessary
+        if (inHandler.Horizontal != 0f)
+            velocity.x += accel * inHandler.Horizontal * Time.deltaTime;
+    }
 
-        RaycastHit2D groundHit = new RaycastHit2D();
-        for (int i = 0; i < linecastCount.x; ++i)    // TODO Spiral out from center
+    private void GroundCheck(int _xDir, int _yDir)
+    {
+        if (_xDir != 0 && _yDir != 0 || _xDir == 0 && _yDir == 0)
         {
-            Vector2 end = bUp ? start + new Vector2(0f, yD) : start - new Vector2(0f, yD);
-            Debug.DrawLine(start, end);
-            groundHit = Physics2D.Linecast(start, end, 1 << LayerMask.NameToLayer("Ground"));
-
-            if (groundHit.collider)
-                break;
-
-            start.x += xD;
+            #if UNITY_DEBUG
+            Debug.LogWarning("Invalid parameters passed to Huevo.GroundCheck().\nOnly x XOR y can have a value != 0.");
+            #endif
+            return;
         }
 
-        if (groundHit)
-            if(bUp ? velocity.y > 0f : velocity.y < 0f)
-            {
-                velocity.y = 0f;
-    
-                transform.position = new Vector3(transform.position.x, bUp ? groundHit.collider.bounds.min.y - hitboxWidthHeight.y: groundHit.collider.bounds.max.y);
-            }
-    }
-
-    private void GroundCheckHorizontal(bool bRight)
-    {
         Rect testHitbox = worldHitBox;
         testHitbox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
         testHitbox.center += velocity * Time.deltaTime;
 
-        Vector2 start = new Vector2(testHitbox.center.x, testHitbox.yMin);
-        float xD = (testHitbox.width / 2f) + groundDistanceCheck;
-        float yD = testHitbox.height / (linecastCount.y + 1);
-        start.y += yD;
+        Vector2 start = new Vector2(_xDir == 0 ? testHitbox.xMin : testHitbox.center.x, _yDir == 0 ? testHitbox.yMin : testHitbox.center.y);
+        float xD = _xDir == 0 ? testHitbox.width / (linecastCount.x + 1) : (testHitbox.width / 2f) + groundDistanceCheck;
+        float yD = _yDir == 0 ? testHitbox.height / (linecastCount.y + 1) : (testHitbox.height / 2f) + groundDistanceCheck;
+
+        if (_xDir == 0)
+            start.x += xD;
+        else if(_yDir == 0)
+            start.y += yD;
 
         RaycastHit2D groundHit = new RaycastHit2D();
-        for (int i = 0; i < linecastCount.y; ++i)    // TODO Spiral out from center
+        for (int i = 0; i < (_xDir != 0 ? linecastCount.x : linecastCount.y); ++i)
         {
-            Vector2 end = bRight ? start + new Vector2(xD, 0f) : start - new Vector2(xD, 0f);
-            Debug.DrawLine(start, end);
+            Vector2 end = Vector2.zero;
+            if (_xDir != 0)
+                end = start + new Vector2(xD * _xDir, 0f);
+            else if(_yDir != 0)
+                end = start + new Vector2(0f, yD * _yDir);
+
             groundHit = Physics2D.Linecast(start, end, 1 << LayerMask.NameToLayer("Ground"));
 
+            #if UNITY_DEBUG
+            if (groundHit)
+            {
+                Debug.DrawLine(start, end, Color.red);
+                break;
+            }else
+                Debug.DrawLine(start, end);
+            #else
             if (groundHit)
                 break;
+            #endif
 
-            start.y += yD;
+            if (_xDir == 0)
+                start.x += xD;
+            else if (_yDir == 0)
+                start.y += yD;
         }
 
         if (groundHit)
         {
-            if (bRight ? velocity.x > 0f : velocity.x < 0f)
-                velocity.x = 0f;
-
-            transform.position = new Vector3(bRight ? groundHit.collider.bounds.min.x - (worldHitBox.width / 2f) 
-                                                    : groundHit.collider.bounds.max.x + (worldHitBox.width / 2f),
-                                                    transform.position.y);
+            if (_xDir != 0)
+                if (Mathf.Sign(velocity.x) == _xDir)
+                {
+                    velocity.x = 0;
+                    transform.position = new Vector3(_xDir > 0 ? groundHit.collider.bounds.min.x - (hitboxWidthHeight.x / 2) 
+                                                                : groundHit.collider.bounds.max.x + (hitboxWidthHeight.x / 2),
+                                                        transform.position.y);
+                }
+            if (_yDir != 0)
+                if (Mathf.Sign(velocity.y) == _yDir)
+                {
+                    velocity.y = 0;
+                    transform.position = new Vector3(transform.position.x, _yDir > 0 ? groundHit.collider.bounds.min.y - hitboxWidthHeight.y : groundHit.collider.bounds.max.y);
+                }
         }
     }
     #endregion
