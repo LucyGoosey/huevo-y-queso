@@ -29,6 +29,13 @@ public class Huevo : MonoBehaviour
     private InputHandler inHandler;
 
     private StateManager stateMan = new StateManager();
+
+    private bool bLeftGround = false;
+    private int leftGroundForFrames = 0;
+
+    private bool bHoldingJump = false;
+    private int extraJumps = 0;
+    private float heldJumpFor = 0;
     #endregion
 
     public Vector2 hitboxWidthHeight = new Vector2(1.6f, 1.6f);
@@ -39,7 +46,11 @@ public class Huevo : MonoBehaviour
     public Vector2 maxSpeed = new Vector2(15f, 35f);
 
     public float accel = 40f;
-    public float jumpForce = 9f;
+    public float jumpForce = 10f;
+    public int maxExtraJumps = 1;
+    public int framesBeforeLeaveGround = 3;
+    public float longJumpForce = 0.1f;
+    public float maxLongJumpTime = 0.5f;
 
     public float groundDragCof = 1f;
     [Range(0f, 1f)]
@@ -76,12 +87,16 @@ public class Huevo : MonoBehaviour
         if (ground != null)
         {
             stateMan.bOnGround = true;
+            Grounded();
 
             if (transform.parent != ground.transform)
                 transform.parent = ground.transform;
         }
-        else
-            stateMan.bOnGround = false;
+        else if (stateMan.bOnGround && !bLeftGround)
+        {
+            bLeftGround = true;
+            leftGroundForFrames = 0;
+        }
 
         // Check for collision with the ceiling
         GroundCheck(0, 1);
@@ -112,6 +127,13 @@ public class Huevo : MonoBehaviour
         // If we're not on the ground or near a wall, we shouldn't "stick" to anything
         if(!stateMan.bOnGround && !stateMan.bNearWall)
             transform.parent = null;
+    }
+
+    private void Grounded()
+    {
+        bLeftGround = false;
+
+        extraJumps = 0;
     }
 
     private void CalculateVelocity()
@@ -229,8 +251,54 @@ public class Huevo : MonoBehaviour
     #region Update
     void Update()
     {
-        if (inHandler.Jump.bDown)
+        if (CanJump() && inHandler.Jump.bDown)
+        {
             velocity.y = jumpForce;
+
+            if (stateMan.bOnGround)
+            {
+                stateMan.bOnGround = false;
+                bHoldingJump = true;
+            }
+            else
+                ++extraJumps;
+        }else if (bHoldingJump)
+        {
+            if (inHandler.Jump.bHeld)
+                velocity.y += longJumpForce;
+            else
+                bHoldingJump = false;
+
+            heldJumpFor += Time.deltaTime;
+            if (heldJumpFor > maxLongJumpTime)
+                bHoldingJump = false;
+
+            if(!bHoldingJump)
+                heldJumpFor = 0;
+        }
+            
+        
+        if (bLeftGround && stateMan.bOnGround)
+        {
+            if (leftGroundForFrames > framesBeforeLeaveGround)
+                stateMan.bOnGround = false;
+
+            ++leftGroundForFrames;
+        }
+    }
+
+    private bool CanJump()
+    {
+        if (bHoldingJump)
+            return false;
+
+        if (stateMan.bOnGround)
+            return true;
+
+        if (extraJumps < maxExtraJumps)
+            return true;
+
+        return false;
     }
     #endregion
 
