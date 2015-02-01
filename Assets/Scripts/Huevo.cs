@@ -20,22 +20,23 @@ public class Huevo : MonoBehaviour
     #region Private
     private Rect worldHitBox;
 
-    private float groundDistanceCheck = 0.1f;
+    private InputHandler inHandler;
+    private StateManager stateMan = new StateManager();
+
+    private float   groundDistanceCheck = 0.1f;
     private Vector2 linecastCount = new Vector2(5, 5);
 
     private Vector2 velocity = Vector2.zero;
-    private float vDeltaTime = 0;
+    private float   vDeltaTime = 0;
 
-    private InputHandler inHandler;
+    private bool    bLeftGround = false;
+    private int     leftGroundForFrames = 0;
 
-    private StateManager stateMan = new StateManager();
-
-    private bool bLeftGround = false;
-    private int leftGroundForFrames = 0;
-
-    private bool bHoldingJump = false;
-    private int extraJumps = 0;
-    private float heldJumpFor = 0;
+    private bool    bWantsToJump = false;
+    private bool    bBlockJump = false;
+    private bool    bLongJumping = false;
+    private int     extraJumps = 0;
+    private float   heldJumpFor = 0;
     #endregion
 
     public Vector2 hitboxWidthHeight = new Vector2(1.6f, 1.6f);
@@ -47,8 +48,9 @@ public class Huevo : MonoBehaviour
 
     public float accel = 40f;
     public float jumpForce = 10f;
-    public int maxExtraJumps = 1;
-    public int framesBeforeLeaveGround = 3;
+    public int   maxExtraJumps = 1;
+    public int   framesBeforeLeaveGround = 3;
+    public int   framesToForgiveJump = 3;
     public float longJumpForce = 0.1f;
     public float maxLongJumpTime = 0.5f;
 
@@ -83,9 +85,13 @@ public class Huevo : MonoBehaviour
     private void PhysicsCheck()
     {
         // Check for collision with the ground
-        GameObject ground = GroundCheck(0, -1);
+        Collider2D ground = GroundCheck(0, -1);
         if (ground != null)
         {
+            if(velocity.y < 0f)
+                velocity.y = 0f;
+            transform.position = new Vector3(transform.position.x, ground.bounds.max.y);
+
             stateMan.bOnGround = true;
             Grounded();
 
@@ -99,25 +105,49 @@ public class Huevo : MonoBehaviour
         }
 
         // Check for collision with the ceiling
-        GroundCheck(0, 1);
+        Collider2D ceiling = GroundCheck(0, 1);
+        if (ceiling != null)
+        {
+            if(velocity.y > 0f)
+                velocity.y = 0f;
+
+            transform.position = new Vector3(transform.position.x, ceiling.bounds.min.y - hitboxWidthHeight.y);
+        }
 
         // Check for collision with the wall to the relative right of Huevo
-        GameObject wall = GroundCheck(1, 0);
-        if (wall != null && !stateMan.bOnGround)
+        Collider2D wall = GroundCheck(1, 0);
+        if (wall != null)
         {
-            stateMan.bNearWall = true;
+            if(velocity.x > 0f)
+                velocity.x = 0f;
 
-            if(transform.parent != wall.transform)
-                transform.parent = wall.transform;
+            transform.position = new Vector3(wall.bounds.min.x - (hitboxWidthHeight.x / 2), transform.position.y);
+
+            if (!stateMan.bOnGround)
+            {
+                stateMan.bNearWall = true;
+
+                if (transform.parent != wall.transform)
+                    transform.parent = wall.transform;
+            }
         }
 
         // Check for collision with the wall to the relative left
-        GameObject otherWall = GroundCheck(-1, 0);
-        if (otherWall != null && !stateMan.bOnGround && !stateMan.bNearWall)
+        Collider2D otherWall = GroundCheck(-1, 0);
+        if (otherWall != null)
         {
-            stateMan.bNearWall = true;
-            if(transform.parent != otherWall.transform)
-                transform.parent = otherWall.transform;
+            if(velocity.x < 0f)
+                velocity.x = 0f;
+
+            transform.position = new Vector3(otherWall.bounds.max.x + (hitboxWidthHeight.x / 2), transform.position.y);
+
+            if (!stateMan.bOnGround && !stateMan.bNearWall)
+            {
+                stateMan.bNearWall = true;
+
+                if (transform.parent != otherWall.transform)
+                    transform.parent = otherWall.transform;
+            }
         }
 
         // No collision with a wall on either side?
@@ -132,6 +162,7 @@ public class Huevo : MonoBehaviour
     private void Grounded()
     {
         bLeftGround = false;
+        bBlockJump = false;
 
         extraJumps = 0;
     }
@@ -156,7 +187,7 @@ public class Huevo : MonoBehaviour
             velocity.y = maxSpeed.y * Mathf.Sign(velocity.y);
     }
 
-    private GameObject GroundCheck(int _xDir, int _yDir)
+    private Collider2D GroundCheck(int _xDir, int _yDir, int framesToAdvance = 1)
     {
         if (_xDir != 0 && _yDir != 0 || _xDir == 0 && _yDir == 0)
         {
@@ -168,7 +199,7 @@ public class Huevo : MonoBehaviour
 
         Rect testHitbox = worldHitBox;
         testHitbox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
-        testHitbox.center += velocity * Time.deltaTime;
+        testHitbox.center += velocity * Time.deltaTime * framesToAdvance;
 
         Vector2 start = new Vector2(_xDir == 0 ? testHitbox.xMin : testHitbox.center.x, _yDir == 0 ? testHitbox.yMin : testHitbox.center.y);
         float xD = _xDir == 0 ? testHitbox.width / (linecastCount.x + 1) : (testHitbox.width / 2f) + groundDistanceCheck;
@@ -198,33 +229,13 @@ public class Huevo : MonoBehaviour
             if (groundHit)
             {
                 Debug.DrawLine(s, e, Color.red);
-                break;
+                return groundHit.collider;
             }else
                 Debug.DrawLine(s, e);
             #else
             if (groundHit)
-                break;
+                return groundHit.collider;
             #endif
-        }
-
-        if (groundHit)
-        {
-            if (_xDir != 0)
-                if (Mathf.Sign(velocity.x) == _xDir)
-                {
-                    velocity.x = 0;
-                    transform.position = new Vector3(_xDir > 0 ? groundHit.collider.bounds.min.x - (hitboxWidthHeight.x / 2) 
-                                                                : groundHit.collider.bounds.max.x + (hitboxWidthHeight.x / 2),
-                                                        transform.position.y);
-                }
-            if (_yDir != 0)
-                if (Mathf.Sign(velocity.y) == _yDir)
-                {
-                    velocity.y = 0;
-                    transform.position = new Vector3(transform.position.x, _yDir > 0 ? groundHit.collider.bounds.min.y - hitboxWidthHeight.y : groundHit.collider.bounds.max.y);
-                }
-
-            return groundHit.collider.gameObject;
         }
 
         return null;
@@ -251,33 +262,72 @@ public class Huevo : MonoBehaviour
     #region Update
     void Update()
     {
-        if (CanJump() && inHandler.Jump.bDown)
-        {
-            velocity.y = jumpForce;
+        HandleJump();
 
-            if (stateMan.bOnGround)
+        CheckLeftGround();
+    }
+
+    private void HandleJump()
+    {
+        if (inHandler.Jump.bDown)
+        {
+            if (!stateMan.bOnGround)
             {
-                stateMan.bOnGround = false;
-                bHoldingJump = true;
+                bool flag = false;
+                for (int i = 1; i < framesToForgiveJump; ++i)
+                    if (GroundCheck(0, -1, i) != null)
+                    {
+                        flag = true;
+                        bWantsToJump = true;
+                        bBlockJump = true;
+                        break;
+                    }
+
+                if (!flag && extraJumps < maxExtraJumps)
+                    bWantsToJump = true;
             }
             else
-                ++extraJumps;
-        }else if (bHoldingJump)
+                bWantsToJump = true;
+        }
+
+        // If we can jump, and the jump button was just pressed...
+        if (CanJump() && bWantsToJump)
         {
-            if (inHandler.Jump.bHeld)
-                velocity.y += longJumpForce;
+            bWantsToJump = false;
+            if (stateMan.bNearWall)
+                ; // TODO Wallkicks
             else
-                bHoldingJump = false;
+            {
+                velocity.y = jumpForce;
+
+                if (stateMan.bOnGround)
+                {
+                    stateMan.bOnGround = false;
+                    bLongJumping = true;
+                }
+                else
+                    ++extraJumps;
+            }
+        }
+        else if (bLongJumping) // Otherwise, if we are long jumping
+        {
+            // Check if jump is being held
+            if (inHandler.Jump.bHeld)
+                velocity.y += longJumpForce; // And long jump if it is
+            else
+                bLongJumping = false;       // otherwise, stop long jumping
 
             heldJumpFor += Time.deltaTime;
             if (heldJumpFor > maxLongJumpTime)
-                bHoldingJump = false;
+                bLongJumping = false;
 
-            if(!bHoldingJump)
+            if (!bLongJumping)
                 heldJumpFor = 0;
         }
-            
-        
+    }
+
+    private void CheckLeftGround()
+    {
         if (bLeftGround && stateMan.bOnGround)
         {
             if (leftGroundForFrames > framesBeforeLeaveGround)
@@ -289,7 +339,10 @@ public class Huevo : MonoBehaviour
 
     private bool CanJump()
     {
-        if (bHoldingJump)
+        if (bBlockJump)
+            return false;
+
+        if (bLongJumping)
             return false;
 
         if (stateMan.bOnGround)
