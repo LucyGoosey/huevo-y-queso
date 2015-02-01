@@ -37,6 +37,7 @@ public class Huevo : MonoBehaviour
     private bool    bLongJumping = false;
     private int     extraJumps = 0;
     private float   heldJumpFor = 0;
+    private int     wallSide = 0;
     #endregion
 
     public Vector2 hitboxWidthHeight = new Vector2(1.6f, 1.6f);
@@ -60,6 +61,8 @@ public class Huevo : MonoBehaviour
     public float airDragCof = 1f;
     [Range(0f, 1f)]
     public float airDragMagic = 0f;
+
+    public Vector2 wallKickForce = new Vector2(10f, 9f);
     #endregion
 
     void Start()
@@ -126,6 +129,7 @@ public class Huevo : MonoBehaviour
             if (!stateMan.bOnGround)
             {
                 stateMan.bNearWall = true;
+                wallSide = -1;
 
                 if (transform.parent != wall.transform)
                     transform.parent = wall.transform;
@@ -144,6 +148,7 @@ public class Huevo : MonoBehaviour
             if (!stateMan.bOnGround && !stateMan.bNearWall)
             {
                 stateMan.bNearWall = true;
+                wallSide = 1;
 
                 if (transform.parent != otherWall.transform)
                     transform.parent = otherWall.transform;
@@ -283,7 +288,21 @@ public class Huevo : MonoBehaviour
                         break;
                     }
 
-                if (!flag && extraJumps < maxExtraJumps)
+                /*for (int i = 1; i < framesToForgiveJump; ++i)
+                    if (GroundCheck(0, -1, i) != null)
+                    {
+                        flag = true;
+                        bWantsToJump = true;
+                        break;
+                    }
+                    else if (GroundCheck(-1, 0, i) != null)
+                    {
+                        flag = true;
+                        bWantsToJump = true;
+                        break;
+                    }*/
+
+                if (!flag && (extraJumps < maxExtraJumps || stateMan.bNearWall))
                     bWantsToJump = true;
             }
             else
@@ -294,8 +313,14 @@ public class Huevo : MonoBehaviour
         if (CanJump() && bWantsToJump)
         {
             bWantsToJump = false;
+
             if (stateMan.bNearWall)
-                ; // TODO Wallkicks
+            {
+                velocity = wallKickForce;
+                velocity.x *= wallSide;
+
+                stateMan.bNearWall = false;
+            }
             else
             {
                 velocity.y = jumpForce;
@@ -348,7 +373,7 @@ public class Huevo : MonoBehaviour
         if (stateMan.bOnGround)
             return true;
 
-        if (extraJumps < maxExtraJumps)
+        if (extraJumps < maxExtraJumps || stateMan.bNearWall)
             return true;
 
         return false;
