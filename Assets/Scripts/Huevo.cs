@@ -130,6 +130,7 @@ public class Huevo : MonoBehaviour
             {
                 stateMan.bNearWall = true;
                 wallSide = -1;
+                bBlockJump = false;
 
                 if (transform.parent != wall.transform)
                     transform.parent = wall.transform;
@@ -149,6 +150,7 @@ public class Huevo : MonoBehaviour
             {
                 stateMan.bNearWall = true;
                 wallSide = 1;
+                bBlockJump = false;
 
                 if (transform.parent != otherWall.transform)
                     transform.parent = otherWall.transform;
@@ -276,7 +278,7 @@ public class Huevo : MonoBehaviour
     {
         if (inHandler.Jump.bDown)
         {
-            if (!stateMan.bOnGround)
+            if (!stateMan.bOnGround && !stateMan.bNearWall)
             {
                 bool flag = false;
                 for (int i = 1; i < framesToForgiveJump; ++i)
@@ -288,21 +290,23 @@ public class Huevo : MonoBehaviour
                         break;
                     }
 
-                /*for (int i = 1; i < framesToForgiveJump; ++i)
+                for (int i = 1; i < framesToForgiveJump; ++i)
                     if (GroundCheck(0, -1, i) != null)
                     {
                         flag = true;
                         bWantsToJump = true;
+                        bBlockJump = true;
                         break;
                     }
                     else if (GroundCheck(-1, 0, i) != null)
                     {
                         flag = true;
                         bWantsToJump = true;
+                        bBlockJump = true;
                         break;
-                    }*/
+                    }
 
-                if (!flag && (extraJumps < maxExtraJumps || stateMan.bNearWall))
+                if (!flag && extraJumps < maxExtraJumps)
                     bWantsToJump = true;
             }
             else
