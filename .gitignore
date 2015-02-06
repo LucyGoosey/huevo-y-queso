@@ -18,3 +18,4 @@ bin/
 ProjectSettings/
 *_Data/
 *-*-*_*/
+obj/
