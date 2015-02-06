@@ -7,3 +7,15 @@
 !*.py
 !*.txt
 !*.conf
+
+# White list any subdirectories
+!*/
+
+# But ensure these subdirectories ignored
+Library/
+Temp/
+bin/
+ProjectSettings/
+*_Data/
+*-*-*_*/
+obj/
