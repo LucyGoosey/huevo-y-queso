@@ -48,6 +48,7 @@ public class Huevo : MonoBehaviour
     public Vector2 maxSpeed = new Vector2(15f, 35f);
 
     public float accel = 40f;
+    public float reverseAccelMod = 1.75f;
     public float jumpForce = 10f;
     public int   maxExtraJumps = 1;
     public int   framesBeforeLeaveGround = 3;
@@ -181,7 +182,14 @@ public class Huevo : MonoBehaviour
 
         // Check for horizontal input, and apply acceleration if necessary
         if (inHandler.Horizontal != 0f)
-            velocity.x += accel * inHandler.Horizontal * vDeltaTime * (stateMan.bOnGround ? groundDragCof : 1f);
+        {
+            float velAdd = accel * inHandler.Horizontal * vDeltaTime;
+            velAdd *= (stateMan.bOnGround ? groundDragCof : 1f);
+            if (Mathf.Sign(velocity.x) != inHandler.Horizontal)
+                velAdd *= reverseAccelMod;
+
+            velocity.x += velAdd;
+        }
         else if (stateMan.bOnGround)
             AddHorizontalDrag(groundDragMagic, groundDragCof);
         else if (!stateMan.bNearWall)
