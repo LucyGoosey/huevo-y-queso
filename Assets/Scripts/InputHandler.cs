@@ -9,6 +9,8 @@ class InputHandler : MonoBehaviour
         public bool bUp = false;
     }
 
+    private bool bHandleInput = true;
+
     private int playerNum = 0;
 
     private Key jump = new Key();
@@ -19,12 +21,14 @@ class InputHandler : MonoBehaviour
     private float dash = 0f;
 
     #region Accessors
-    public Key Jump { get { return jump; } }
-    public Key Slam { get { return jump; } }
+    public bool InputEnabled{ get{return bHandleInput;} set{bHandleInput = value;} }
 
-    public float Horizontal { get { return horizontal; } }
-    public float Vertical { get { return vertical; } }
-    public float Dash { get { return dash; } }
+    public Key Jump { get { return (bHandleInput ? jump : new Key()); } }
+    public Key Slam { get { return (bHandleInput ? slam : new Key()); } }
+
+    public float Horizontal { get { return (bHandleInput ? horizontal : 0f); } }
+    public float Vertical { get { return (bHandleInput ? vertical : 0f); } }
+    public float Dash { get { return (bHandleInput ? dash : 0f); } }
     #endregion
 
     void Update()

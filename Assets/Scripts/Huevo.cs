@@ -15,6 +15,7 @@ public class Huevo : MonoBehaviour
         public bool bOnGround = false;
         public bool bNearWall = false;
         public bool bHangingToWall = false;
+        public bool bIsDashing = false;
     }
 
     #region Variables
@@ -40,8 +41,14 @@ public class Huevo : MonoBehaviour
     private int     extraJumps = 0;
     private float   heldJumpFor = 0;
     private int     wallSide = 0;
+
     private Vector2 preHangGravity = Vector2.zero;
     private float   timeOnWall = 0f;
+
+    private int     dashCombo = 0;
+    private float   maxDashTime;
+    private float   timeInDash = 0f;
+    private float   dashDir = 0f;
     #endregion
 
     public Vector2 hitboxWidthHeight = new Vector2(1.6f, 1.6f);
@@ -72,6 +79,12 @@ public class Huevo : MonoBehaviour
     public float maxWallHangTime = 1.5f;
     [Range(0f, 0.2f)]
     public float wallGrindMod = 0.075f;
+
+    public float maxDashes = 2;
+    public float dashVelocity = 15f;
+    public float dashPauseTime = 0.1f;
+    public float dashMotionTime = 0.3f;
+    public float dashOverflowTime = 0.2f;
     #endregion
 
     void Start()
@@ -81,6 +94,8 @@ public class Huevo : MonoBehaviour
 
         worldHitBox.width = hitboxWidthHeight.x;
         worldHitBox.height = hitboxWidthHeight.y;
+
+        maxDashTime = dashPauseTime + dashMotionTime + dashOverflowTime;
     }
 
     #region FixedUpdate
@@ -184,11 +199,16 @@ public class Huevo : MonoBehaviour
 
         wallKickInputBlock = 0;
         timeOnWall = 0;
+
+        dashCombo = 0;
     }
 
     private void CalculateVelocity()
     {
         vDeltaTime = Time.deltaTime;
+
+        if (IsBlockedByDash())
+            return;
 
         velocity += gravity * vDeltaTime;
 
@@ -221,6 +241,23 @@ public class Huevo : MonoBehaviour
         }else
             if (Mathf.Abs(velocity.y) > maxSpeed.y * wallGrindMod)
                 velocity.y = maxSpeed.y * Mathf.Sign(velocity.y) * wallGrindMod;
+    }
+
+    private bool IsBlockedByDash()
+    {
+        if (stateMan.bIsDashing)
+        {
+            if (timeInDash < dashPauseTime)
+                velocity = Vector2.zero;
+            else if (timeInDash - dashPauseTime < dashMotionTime)
+                velocity = new Vector2(dashVelocity, 0f) * dashDir;
+            else
+                return false;
+
+            return true;
+        }
+        else
+            return false;
     }
 
     private Collider2D GroundCheck(int _xDir, int _yDir, int framesToAdvance = 1)
@@ -301,36 +338,25 @@ public class Huevo : MonoBehaviour
         if (wallKickInputBlock != (int)Mathf.Sign(inHandler.Horizontal))
             wallKickInputBlock = 0;
 
+        if (stateMan.bIsDashing)
+        {
+            timeInDash += Time.deltaTime;
+
+            if (timeInDash > maxDashTime)
+            {
+                stateMan.bIsDashing = false;
+                inHandler.InputEnabled = true;
+                timeInDash = 0f;
+            }
+        }
+
         HandleJump();
+        HandleDash();
 
         if(!stateMan.bOnGround)
             HandleWallHang();
 
         CheckLeftGround();
-    }
-
-    private void HandleWallHang()
-    {
-        if (stateMan.bHangingToWall)
-            timeOnWall += Time.deltaTime;
-        
-        if (!stateMan.bHangingToWall && stateMan.bNearWall 
-            && inHandler.Horizontal == wallSide && timeOnWall <= maxWallHangTime)
-        {
-            preHangGravity = gravity;
-            gravity = Vector2.zero;
-            velocity = Vector2.zero;
-            stateMan.bHangingToWall = true;
-        }
-
-        if (stateMan.bHangingToWall
-            && (inHandler.Horizontal != wallSide 
-                || !stateMan.bNearWall
-                || timeOnWall > maxWallHangTime))
-        {
-            gravity = preHangGravity;
-            stateMan.bHangingToWall = false;
-        }
     }
 
     private void HandleJump()
@@ -418,6 +444,42 @@ public class Huevo : MonoBehaviour
         }
         else
             bWantsToJump = true;
+    }
+
+    private void HandleDash()
+    {
+        if (!stateMan.bIsDashing
+            && inHandler.Dash != 0 && dashCombo < maxDashes)
+        {
+            dashDir = inHandler.Dash;
+            stateMan.bIsDashing = true;
+            inHandler.InputEnabled = false;
+            ++dashCombo;
+        }
+    }
+
+    private void HandleWallHang()
+    {
+        if (stateMan.bHangingToWall)
+            timeOnWall += Time.deltaTime;
+        
+        if (!stateMan.bHangingToWall && stateMan.bNearWall 
+            && inHandler.Horizontal == wallSide && timeOnWall <= maxWallHangTime)
+        {
+            preHangGravity = gravity;
+            gravity = Vector2.zero;
+            velocity = Vector2.zero;
+            stateMan.bHangingToWall = true;
+        }
+
+        if (stateMan.bHangingToWall
+            && (inHandler.Horizontal != wallSide 
+                || !stateMan.bNearWall
+                || timeOnWall > maxWallHangTime))
+        {
+            gravity = preHangGravity;
+            stateMan.bHangingToWall = false;
+        }
     }
 
     private void CheckLeftGround()
