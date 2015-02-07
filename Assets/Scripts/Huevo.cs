@@ -70,6 +70,8 @@ public class Huevo : MonoBehaviour
 
     public Vector2 wallKickForce = new Vector2(10f, 9f);
     public float maxWallHangTime = 1.5f;
+    [Range(0f, 0.2f)]
+    public float wallGrindMod = 0.075f;
     #endregion
 
     void Start()
@@ -212,8 +214,13 @@ public class Huevo : MonoBehaviour
         // Limit the velocity to the max speed
         if (Mathf.Abs(velocity.x) > maxSpeed.x)
             velocity.x = maxSpeed.x * Mathf.Sign(velocity.x);
-        if (Mathf.Abs(velocity.y) > maxSpeed.y)
-            velocity.y = maxSpeed.y * Mathf.Sign(velocity.y);
+        if (!stateMan.bNearWall)
+        {
+            if (Mathf.Abs(velocity.y) > maxSpeed.y)
+                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y);
+        }else
+            if (Mathf.Abs(velocity.y) > maxSpeed.y * wallGrindMod)
+                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y) * wallGrindMod;
     }
 
     private Collider2D GroundCheck(int _xDir, int _yDir, int framesToAdvance = 1)
