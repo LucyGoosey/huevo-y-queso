@@ -40,6 +40,7 @@ public class Huevo : MonoBehaviour
     private int     extraJumps = 0;
     private float   heldJumpFor = 0;
     private int     wallSide = 0;
+    private Vector2 preHangGravity = Vector2.zero;
     #endregion
 
     public Vector2 hitboxWidthHeight = new Vector2(1.6f, 1.6f);
@@ -133,7 +134,7 @@ public class Huevo : MonoBehaviour
             if (!stateMan.bOnGround)
             {
                 stateMan.bNearWall = true;
-                wallSide = -1;
+                wallSide = 1;
                 bBlockJump = false;
 
                 if (transform.parent != wall.transform)
@@ -153,7 +154,7 @@ public class Huevo : MonoBehaviour
             if (!stateMan.bOnGround && !stateMan.bNearWall)
             {
                 stateMan.bNearWall = true;
-                wallSide = 1;
+                wallSide = -1;
                 bBlockJump = false;
 
                 if (transform.parent != otherWall.transform)
@@ -182,6 +183,7 @@ public class Huevo : MonoBehaviour
     private void CalculateVelocity()
     {
         vDeltaTime = Time.deltaTime;
+
         velocity += gravity * vDeltaTime;
 
         // Check for horizontal input, and apply acceleration if necessary
@@ -285,16 +287,36 @@ public class Huevo : MonoBehaviour
     #region Update
     void Update()
     {
+        if (wallKickInputBlock != (int)Mathf.Sign(inHandler.Horizontal))
+            wallKickInputBlock = 0;
+
         HandleJump();
+
+        HandleWallHang();
 
         CheckLeftGround();
     }
 
+    private void HandleWallHang()
+    {
+        if (!stateMan.bHangingToWall && stateMan.bNearWall && inHandler.Horizontal == wallSide)
+        {
+            preHangGravity = gravity;
+            gravity = Vector2.zero;
+            velocity = Vector2.zero;
+            stateMan.bHangingToWall = true;
+        }
+
+        if (stateMan.bHangingToWall
+            && (inHandler.Horizontal != wallSide || !stateMan.bNearWall))
+        {
+            gravity = preHangGravity;
+            stateMan.bHangingToWall = false;
+        }
+    }
+
     private void HandleJump()
     {
-        if (wallKickInputBlock != (int)Mathf.Sign(inHandler.Horizontal))
-            wallKickInputBlock = 0;
-
         if (inHandler.Jump.bDown)
             CalcShouldWantJump();
 
@@ -306,7 +328,7 @@ public class Huevo : MonoBehaviour
             if (stateMan.bNearWall)
             {
                 velocity = wallKickForce;
-                velocity.x *= wallSide;
+                velocity.x *= -wallSide;
 
                 stateMan.bNearWall = false;
                 // Prevent any extra jumps after a wall kick
