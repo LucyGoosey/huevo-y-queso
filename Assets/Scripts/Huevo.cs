@@ -14,6 +14,7 @@ public class Huevo : MonoBehaviour
     {
         public bool bOnGround = false;
         public bool bNearWall = false;
+        public bool bHangingToWall = false;
     }
 
     #region Variables
@@ -35,6 +36,7 @@ public class Huevo : MonoBehaviour
     private bool    bWantsToJump = false;
     private bool    bBlockJump = false;
     private bool    bLongJumping = false;
+    private int     wallKickInputBlock = 0;
     private int     extraJumps = 0;
     private float   heldJumpFor = 0;
     private int     wallSide = 0;
@@ -174,6 +176,7 @@ public class Huevo : MonoBehaviour
         bBlockJump = false;
 
         extraJumps = 0;
+        wallKickInputBlock = 0;
     }
 
     private void CalculateVelocity()
@@ -182,7 +185,7 @@ public class Huevo : MonoBehaviour
         velocity += gravity * vDeltaTime;
 
         // Check for horizontal input, and apply acceleration if necessary
-        if (inHandler.Horizontal != 0f)
+        if (inHandler.Horizontal != 0f && wallKickInputBlock == 0)
         {
             float velAdd = accel * inHandler.Horizontal * vDeltaTime;
 
@@ -289,6 +292,9 @@ public class Huevo : MonoBehaviour
 
     private void HandleJump()
     {
+        if (wallKickInputBlock != (int)Mathf.Sign(inHandler.Horizontal))
+            wallKickInputBlock = 0;
+
         if (inHandler.Jump.bDown)
             CalcShouldWantJump();
 
@@ -305,6 +311,7 @@ public class Huevo : MonoBehaviour
                 stateMan.bNearWall = false;
                 // Prevent any extra jumps after a wall kick
                 extraJumps = maxExtraJumps;
+                wallKickInputBlock = (int)Mathf.Sign(inHandler.Horizontal);
             }
             else
             {
