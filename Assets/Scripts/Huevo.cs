@@ -48,6 +48,7 @@ public class Huevo : MonoBehaviour
     public Vector2 maxSpeed = new Vector2(15f, 35f);
 
     public float accel = 40f;
+    public float airAccelMod = 0.5f;
     public float reverseAccelMod = 1.75f;
     public float jumpForce = 10f;
     public int   maxExtraJumps = 1;
@@ -184,7 +185,11 @@ public class Huevo : MonoBehaviour
         if (inHandler.Horizontal != 0f)
         {
             float velAdd = accel * inHandler.Horizontal * vDeltaTime;
-            velAdd *= (stateMan.bOnGround ? groundDragCof : 1f);
+
+            if (!stateMan.bOnGround)
+                velAdd *= airAccelMod;
+
+            velAdd *= (stateMan.bOnGround ? groundDragCof : airDragCof);
             if (Mathf.Sign(velocity.x) != inHandler.Horizontal)
                 velAdd *= reverseAccelMod;
 
@@ -285,41 +290,7 @@ public class Huevo : MonoBehaviour
     private void HandleJump()
     {
         if (inHandler.Jump.bDown)
-        {
-            if (!stateMan.bOnGround && !stateMan.bNearWall)
-            {
-                bool flag = false;
-                for (int i = 1; i < framesToForgiveJump; ++i)
-                    if (GroundCheck(0, -1, i) != null)
-                    {
-                        flag = true;
-                        bWantsToJump = true;
-                        bBlockJump = true;
-                        break;
-                    }
-
-                for (int i = 1; i < framesToForgiveJump; ++i)
-                    if (GroundCheck(0, -1, i) != null)
-                    {
-                        flag = true;
-                        bWantsToJump = true;
-                        bBlockJump = true;
-                        break;
-                    }
-                    else if (GroundCheck(-1, 0, i) != null)
-                    {
-                        flag = true;
-                        bWantsToJump = true;
-                        bBlockJump = true;
-                        break;
-                    }
-
-                if (!flag && extraJumps < maxExtraJumps)
-                    bWantsToJump = true;
-            }
-            else
-                bWantsToJump = true;
-        }
+            CalcShouldWantJump();
 
         // If we can jump, and the jump button was just pressed...
         if (CanJump() && bWantsToJump)
@@ -332,6 +303,8 @@ public class Huevo : MonoBehaviour
                 velocity.x *= wallSide;
 
                 stateMan.bNearWall = false;
+                // Prevent any extra jumps after a wall kick
+                extraJumps = maxExtraJumps;
             }
             else
             {
@@ -361,6 +334,43 @@ public class Huevo : MonoBehaviour
             if (!bLongJumping)
                 heldJumpFor = 0;
         }
+    }
+
+    private void CalcShouldWantJump()
+    {
+        if (!stateMan.bOnGround && !stateMan.bNearWall)
+        {
+            bool flag = false;
+            for (int i = 1; i < framesToForgiveJump; ++i)
+                if (GroundCheck(0, -1, i) != null)
+                {
+                    flag = true;
+                    bWantsToJump = true;
+                    bBlockJump = true;
+                    break;
+                }
+
+            for (int i = 1; i < framesToForgiveJump; ++i)
+                if (GroundCheck(0, -1, i) != null)
+                {
+                    flag = true;
+                    bWantsToJump = true;
+                    bBlockJump = true;
+                    break;
+                }
+                else if (GroundCheck(-1, 0, i) != null)
+                {
+                    flag = true;
+                    bWantsToJump = true;
+                    bBlockJump = true;
+                    break;
+                }
+
+            if (!flag && extraJumps < maxExtraJumps)
+                bWantsToJump = true;
+        }
+        else
+            bWantsToJump = true;
     }
 
     private void CheckLeftGround()
