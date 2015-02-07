@@ -52,6 +52,8 @@ public class Huevo : MonoBehaviour
     #endregion
 
     public Vector2 hitboxWidthHeight = new Vector2(1.6f, 1.6f);
+    [Range(0f, 1f)]
+    public float   wallHitBoxHeightPct = 0.51f;
 
     public int playerNum = 0;
 
@@ -112,7 +114,8 @@ public class Huevo : MonoBehaviour
     private void PhysicsCheck()
     {
         // Check for collision with the ground
-        Collider2D ground = GroundCheck(0, -1);
+        RaycastHit2D hit = GroundCheck(0, -1);
+        Collider2D ground = hit.collider;
         if (ground != null)
         {
             if(velocity.y < 0f)
@@ -132,7 +135,8 @@ public class Huevo : MonoBehaviour
         }
 
         // Check for collision with the ceiling
-        Collider2D ceiling = GroundCheck(0, 1);
+        hit = GroundCheck(0, 1);
+        Collider2D ceiling = hit.collider;
         if (ceiling != null)
         {
             if(velocity.y > 0f)
@@ -141,8 +145,12 @@ public class Huevo : MonoBehaviour
             transform.position = new Vector3(transform.position.x, ceiling.bounds.min.y - hitboxWidthHeight.y);
         }
 
+        // We're not near a wall unless we are near a wall!
+        stateMan.bNearWall = false;
+
         // Check for collision with the wall to the relative right of Huevo
-        Collider2D wall = GroundCheck(1, 0);
+        hit = GroundCheck(1, 0);
+        Collider2D wall = hit.collider;
         if (wall != null)
         {
             if(velocity.x > 0f)
@@ -150,7 +158,7 @@ public class Huevo : MonoBehaviour
 
             transform.position = new Vector3(wall.bounds.min.x - (hitboxWidthHeight.x / 2), transform.position.y);
 
-            if (!stateMan.bOnGround)
+            if (!stateMan.bOnGround && hit.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
             {
                 stateMan.bNearWall = true;
                 wallSide = 1;
@@ -162,7 +170,8 @@ public class Huevo : MonoBehaviour
         }
 
         // Check for collision with the wall to the relative left
-        Collider2D otherWall = GroundCheck(-1, 0);
+        hit = GroundCheck(-1, 0);
+        Collider2D otherWall = hit.collider;
         if (otherWall != null)
         {
             if(velocity.x < 0f)
@@ -170,7 +179,7 @@ public class Huevo : MonoBehaviour
 
             transform.position = new Vector3(otherWall.bounds.max.x + (hitboxWidthHeight.x / 2), transform.position.y);
 
-            if (!stateMan.bOnGround && !stateMan.bNearWall)
+            if (!stateMan.bOnGround && !stateMan.bNearWall && hit.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
             {
                 stateMan.bNearWall = true;
                 wallSide = -1;
@@ -180,10 +189,6 @@ public class Huevo : MonoBehaviour
                     transform.parent = otherWall.transform;
             }
         }
-
-        // No collision with a wall on either side?
-        if (wall == null && otherWall == null)
-            stateMan.bNearWall = false;
 
         // If we're not on the ground or near a wall, we shouldn't "stick" to anything
         if(!stateMan.bOnGround && !stateMan.bNearWall)
@@ -252,7 +257,7 @@ public class Huevo : MonoBehaviour
                 velocity = Vector2.zero;
             else if (timeInDash - dashPauseTime < dashMotionTime)
             {
-                if (GroundCheck((int)dashDir, 0, 2) != null)
+                if (GroundCheck((int)dashDir, 0, 2).collider != null)
                     timeInDash = maxDashTime;
 
                 velocity = new Vector2(dashVelocity, 0f) * dashDir;
@@ -266,14 +271,16 @@ public class Huevo : MonoBehaviour
             return false;
     }
 
-    private Collider2D GroundCheck(int _xDir, int _yDir, int framesToAdvance = 1)
+    private RaycastHit2D GroundCheck(int _xDir, int _yDir, int framesToAdvance = 1)
     {
+        RaycastHit2D groundHit = new RaycastHit2D();
+
         if (_xDir != 0 && _yDir != 0 || _xDir == 0 && _yDir == 0)
         {
             #if UNITY_DEBUG
             Debug.LogWarning("Invalid parameters passed to Huevo.GroundCheck().\nOnly x XOR y can have a value != 0.");
             #endif
-            return null;
+            return groundHit;
         }
 
         Rect testHitbox = worldHitBox;
@@ -289,7 +296,6 @@ public class Huevo : MonoBehaviour
         else if(_yDir == 0)
             start.y += yD;
 
-        RaycastHit2D groundHit = new RaycastHit2D();
         int center = (int)(_xDir != 0 ? Mathf.Floor(linecastCount.x / 2) : Mathf.Floor(linecastCount.y / 2));
         for (int i = 0; i < (_xDir != 0 ? linecastCount.x : linecastCount.y); ++i)
         {
@@ -299,7 +305,7 @@ public class Huevo : MonoBehaviour
             Vector2 e = Vector2.zero;
             if (_xDir != 0)
                 e = s + new Vector2(xD * _xDir, 0f);
-            else if(_yDir != 0)
+            else if (_yDir != 0)
                 e = s + new Vector2(0f, yD * _yDir);
 
             groundHit = Physics2D.Linecast(s, e, 1 << LayerMask.NameToLayer("Ground"));
@@ -308,7 +314,7 @@ public class Huevo : MonoBehaviour
             if (groundHit)
             {
                 Debug.DrawLine(s, e, Color.red);
-                return groundHit.collider;
+                return groundHit;
             }else
                 Debug.DrawLine(s, e);
             #else
@@ -317,7 +323,7 @@ public class Huevo : MonoBehaviour
             #endif
         }
 
-        return null;
+        return groundHit;
     }
 
     private void AddHorizontalDrag(float _dragMagic, float _dragCof = 1f)
@@ -421,7 +427,7 @@ public class Huevo : MonoBehaviour
         {
             bool flag = false;
             for (int i = 1; i < framesToForgiveJump; ++i)
-                if (GroundCheck(0, -1, i) != null)
+                if (GroundCheck(0, -1, i).collider != null)
                 {
                     flag = true;
                     bWantsToJump = true;
@@ -430,14 +436,14 @@ public class Huevo : MonoBehaviour
                 }
 
             for (int i = 1; i < framesToForgiveJump; ++i)
-                if (GroundCheck(0, -1, i) != null)
+                if (GroundCheck(0, -1, i).collider != null)
                 {
                     flag = true;
                     bWantsToJump = true;
                     bBlockJump = true;
                     break;
                 }
-                else if (GroundCheck(-1, 0, i) != null)
+                else if (GroundCheck(-1, 0, i).collider != null)
                 {
                     flag = true;
                     bWantsToJump = true;
@@ -530,19 +536,28 @@ public class Huevo : MonoBehaviour
             worldHitBox.height = hitboxWidthHeight.y;
 
         // Draw worldHitbox
-        Gizmos.DrawLine(new Vector3(worldHitBox.xMin, worldHitBox.yMin), new Vector3(worldHitBox.xMax, worldHitBox.yMin));
-        Gizmos.DrawLine(new Vector3(worldHitBox.xMax, worldHitBox.yMin), new Vector3(worldHitBox.xMax, worldHitBox.yMax));
+        float yMin = worldHitBox.yMin + (worldHitBox.height * wallHitBoxHeightPct);
+        Gizmos.DrawLine(new Vector3(worldHitBox.xMax, yMin), new Vector3(worldHitBox.xMax, worldHitBox.yMax));
         Gizmos.DrawLine(new Vector3(worldHitBox.xMax, worldHitBox.yMax), new Vector3(worldHitBox.xMin, worldHitBox.yMax));
-        Gizmos.DrawLine(new Vector3(worldHitBox.xMin, worldHitBox.yMax), new Vector3(worldHitBox.xMin, worldHitBox.yMin));
+        Gizmos.DrawLine(new Vector3(worldHitBox.xMin, worldHitBox.yMax), new Vector3(worldHitBox.xMin, yMin));
 
+        // Draw wallHitbox
+        Gizmos.color = new Color(0.75f, 0.66f, 0f);
+        Gizmos.DrawLine(new Vector3(worldHitBox.xMin, worldHitBox.yMin), new Vector3(worldHitBox.xMax, worldHitBox.yMin));
+        Gizmos.DrawLine(new Vector3(worldHitBox.xMax, worldHitBox.yMin), new Vector3(worldHitBox.xMax, yMin));
+        Gizmos.DrawLine(new Vector3(worldHitBox.xMin, yMin), new Vector3(worldHitBox.xMin, worldHitBox.yMin));
+
+        Gizmos.color = new Color(0.8f, 0.2f, 0.25f);
         Vector2 start = new Vector2(worldHitBox.xMin, worldHitBox.yMin);
         float xD = worldHitBox.width / (linecastCount.x + 1);
         float yD = worldHitBox.height / (linecastCount.y + 1);
 
+        Gizmos.color = new Color(0.75f, 0.66f, 0f);
         start.x += xD;
         for (int i = 0; i < linecastCount.x; ++i, start.x += xD)
             Gizmos.DrawLine(start, start - new Vector2(0f, groundDistanceCheck));
 
+        Gizmos.color = new Color(0.8f, 0.2f, 0.25f);
         start = new Vector2(worldHitBox.xMin, worldHitBox.yMax);
         start.x += xD;
         for (int i = 0; i < linecastCount.x; ++i, start.x += xD)
@@ -551,12 +566,26 @@ public class Huevo : MonoBehaviour
         start = new Vector2(worldHitBox.xMin, worldHitBox.yMin);
         start.y += yD;
         for (int i = 0; i < linecastCount.y; ++i, start.y += yD)
+        {
+            if (start.y < yMin)
+                Gizmos.color = new Color(0.75f, 0.66f, 0f);
+            else
+                Gizmos.color = new Color(0.8f, 0.2f, 0.25f);
+
             Gizmos.DrawLine(start, start - new Vector2(groundDistanceCheck, 0f));
+        }
 
         start = new Vector2(worldHitBox.xMax, worldHitBox.yMin);
         start.y += yD;
         for (int i = 0; i < linecastCount.y; ++i, start.y += yD)
+        {
+            if (start.y < yMin)
+                Gizmos.color = new Color(0.75f, 0.66f, 0f);
+            else
+                Gizmos.color = new Color(0.8f, 0.2f, 0.25f);
+
             Gizmos.DrawLine(start, start + new Vector2(groundDistanceCheck, 0f));
+        }
     }
 #endif
     #endregion
