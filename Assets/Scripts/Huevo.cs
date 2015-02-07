@@ -41,6 +41,7 @@ public class Huevo : MonoBehaviour
     private float   heldJumpFor = 0;
     private int     wallSide = 0;
     private Vector2 preHangGravity = Vector2.zero;
+    private float   timeOnWall = 0f;
     #endregion
 
     public Vector2 hitboxWidthHeight = new Vector2(1.6f, 1.6f);
@@ -68,6 +69,7 @@ public class Huevo : MonoBehaviour
     public float airDragMagic = 0f;
 
     public Vector2 wallKickForce = new Vector2(10f, 9f);
+    public float maxWallHangTime = 1.5f;
     #endregion
 
     void Start()
@@ -177,7 +179,9 @@ public class Huevo : MonoBehaviour
         bBlockJump = false;
 
         extraJumps = 0;
+
         wallKickInputBlock = 0;
+        timeOnWall = 0;
     }
 
     private void CalculateVelocity()
@@ -292,14 +296,19 @@ public class Huevo : MonoBehaviour
 
         HandleJump();
 
-        HandleWallHang();
+        if(!stateMan.bOnGround)
+            HandleWallHang();
 
         CheckLeftGround();
     }
 
     private void HandleWallHang()
     {
-        if (!stateMan.bHangingToWall && stateMan.bNearWall && inHandler.Horizontal == wallSide)
+        if (stateMan.bHangingToWall)
+            timeOnWall += Time.deltaTime;
+        
+        if (!stateMan.bHangingToWall && stateMan.bNearWall 
+            && inHandler.Horizontal == wallSide && timeOnWall <= maxWallHangTime)
         {
             preHangGravity = gravity;
             gravity = Vector2.zero;
@@ -308,7 +317,9 @@ public class Huevo : MonoBehaviour
         }
 
         if (stateMan.bHangingToWall
-            && (inHandler.Horizontal != wallSide || !stateMan.bNearWall))
+            && (inHandler.Horizontal != wallSide 
+                || !stateMan.bNearWall
+                || timeOnWall > maxWallHangTime))
         {
             gravity = preHangGravity;
             stateMan.bHangingToWall = false;
