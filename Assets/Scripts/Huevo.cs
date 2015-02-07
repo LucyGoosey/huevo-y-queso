@@ -221,6 +221,7 @@ public class Huevo : MonoBehaviour
                 velAdd *= airAccelMod;
 
             velAdd *= (stateMan.bOnGround ? groundDragCof : airDragCof);
+
             if (Mathf.Sign(velocity.x) != inHandler.Horizontal)
                 velAdd *= reverseAccelMod;
 
@@ -250,7 +251,12 @@ public class Huevo : MonoBehaviour
             if (timeInDash < dashPauseTime)
                 velocity = Vector2.zero;
             else if (timeInDash - dashPauseTime < dashMotionTime)
+            {
+                if (GroundCheck((int)dashDir, 0, 2) != null)
+                    timeInDash = maxDashTime;
+
                 velocity = new Vector2(dashVelocity, 0f) * dashDir;
+            }
             else
                 return false;
 
