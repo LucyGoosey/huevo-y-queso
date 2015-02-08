@@ -73,7 +73,7 @@ public class Huevo : MonoBehaviour
     public int   maxExtraJumps = 1;
     public int   framesBeforeLeaveGround = 3;
     public int   framesToForgiveJump = 3;
-    public float longJumpForce = 0.1f;
+    public float longJumpForce = 0.17f;
     public float maxLongJumpTime = 0.5f;
 
     public float groundDragCof = 1f;
@@ -255,7 +255,7 @@ public class Huevo : MonoBehaviour
         // Limit the velocity to the max speed
         if (Mathf.Abs(velocity.x) > maxSpeed.x)
             velocity.x = maxSpeed.x * Mathf.Sign(velocity.x);
-        if (!stateMan.bNearWall)
+        if (!stateMan.bNearWall || bIsSlamming)
         {
             if (Mathf.Abs(velocity.y) > maxSpeed.y)
                 velocity.y = maxSpeed.y * Mathf.Sign(velocity.y);
@@ -518,6 +518,7 @@ public class Huevo : MonoBehaviour
         if (!stateMan.bOnGround && inHandler.Slam.bDown && !bIsSlamming)
         {
             bIsSlamming = true;
+            inHandler.InputEnabled = false;
             velocity = new Vector2(0, -maxSpeed.y);
         }
     }
