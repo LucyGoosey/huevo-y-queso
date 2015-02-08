@@ -203,7 +203,7 @@ public class Mario : MonoBehaviour {
  
                 if (!bOnWall && !bNearWall)
                 {
-                    if (bOnGround )//|| (!bOnGround && extraJumps < maxExtraJumps && _isJumping))
+                    if (bOnGround || (!bOnGround && extraJumps < maxExtraJumps && _isJumping))
                     {
                         Vector3 gPos = transform.position + (Vector3)(Vector2.Scale((transform.position - groundPosMid.position).normalized, rigidbody2D.velocity * (maxFramesToForgiveJump * Time.fixedDeltaTime)));
                         bool bNearGround = Physics2D.Linecast(transform.position, gPos, 1 << LayerMask.NameToLayer("Ground"));
@@ -259,7 +259,7 @@ public class Mario : MonoBehaviour {
         }
         else
             if (_isJumping && Time.time - jumpHeldTime < longJumpTime && extraJumps == 0)
-                ;// rigidbody2D.AddForce(new Vector2(0f, !bJumpOffWall ? longJumpForce : longWallKickForce));
+                rigidbody2D.AddForce(new Vector2(0f, !bJumpOffWall ? longJumpForce : longWallKickForce));
  
         if (!_isJumping)
         {

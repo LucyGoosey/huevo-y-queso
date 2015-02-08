@@ -17,6 +17,7 @@ public class Huevo : MonoBehaviour
         public bool bNearWall = false;
         public bool bHangingToWall = false;
         public bool bIsDashing = false;
+        public bool bIsCrouching = false;
     }
 
     #region Private variables
@@ -34,6 +35,8 @@ public class Huevo : MonoBehaviour
     private Vector2 velocity = Vector2.zero;
     private float   vDeltaTime = 0;
 
+    private Vector2 effectiveGravity = new Vector2(0f, -24f);
+
     private bool    bLeftGround = false;
     private int     leftGroundForFrames = 0;
 
@@ -45,7 +48,6 @@ public class Huevo : MonoBehaviour
     private float   heldJumpFor = 0;
     private int     wallSide = 0;
 
-    private Vector2 preHangGravity = Vector2.zero;
     private float   timeOnWall = 0f;
 
     private int     dashCombo = 0;
@@ -54,6 +56,8 @@ public class Huevo : MonoBehaviour
     private float   dashDir = 0f;
 
     private bool    bIsSlamming = false;
+
+    private float   crouchFloatTime = 0f;
     #endregion
 
     #region Public Variables
@@ -93,6 +97,11 @@ public class Huevo : MonoBehaviour
     public float dashPauseTime = 0.1f;
     public float dashMotionTime = 0.3f;
     public float dashOverflowTime = 0.2f;
+
+    public float crouchSlideMinSpeed = 0.2f;
+    public float crouchFloatMinSpeed = 0.5f;
+    public float crouchFloatMaxTime = 0.4f;
+    public float crouchFloatFalloffTime = 0.1f;
     #endregion
 
     void Start()
@@ -230,7 +239,7 @@ public class Huevo : MonoBehaviour
         if (IsBlockedByDash())
             return;
 
-        velocity += gravity * vDeltaTime;
+        velocity += effectiveGravity * vDeltaTime;
 
         // Check for horizontal input, and apply acceleration if necessary
         if (inHandler.Horizontal != 0f && wallKickInputBlock == 0)
@@ -374,8 +383,10 @@ public class Huevo : MonoBehaviour
             HandleSlam();
         }
 
+        HandleCrouch();
+
         CheckLeftGround();
-        CheckAnimation();
+        UpdateAnimation();
     }
 
     private void HandleJump()
@@ -387,6 +398,8 @@ public class Huevo : MonoBehaviour
         if (CanJump() && bWantsToJump)
         {
             bWantsToJump = false;
+            if(stateMan.bIsCrouching)
+                EndCrouch();
 
             if (stateMan.bNearWall)
             {
@@ -497,8 +510,7 @@ public class Huevo : MonoBehaviour
         if (!stateMan.bHangingToWall && stateMan.bNearWall 
             && inHandler.Horizontal == wallSide && timeOnWall <= maxWallHangTime)
         {
-            preHangGravity = gravity;
-            gravity = Vector2.zero;
+            effectiveGravity = Vector2.zero;
             velocity = Vector2.zero;
             stateMan.bHangingToWall = true;
         }
@@ -508,7 +520,7 @@ public class Huevo : MonoBehaviour
                 || !stateMan.bNearWall
                 || timeOnWall > maxWallHangTime))
         {
-            gravity = preHangGravity;
+            effectiveGravity = gravity;
             stateMan.bHangingToWall = false;
         }
     }
@@ -521,6 +533,53 @@ public class Huevo : MonoBehaviour
             inHandler.InputEnabled = false;
             velocity = new Vector2(0, -maxSpeed.y);
         }
+    }
+
+    private void HandleCrouch()
+    {
+        if (stateMan.bIsCrouching)
+            if (stateMan.bOnGround && !bLeftGround)
+            {
+                effectiveGravity = gravity;
+                crouchFloatTime = 0f;
+
+                if (Mathf.Abs(velocity.x) < maxSpeed.x * crouchSlideMinSpeed)
+                    velocity.x = 0f;
+            }
+            else
+            {
+                velocity.y = 0f;
+                leftGroundForFrames = 0;
+                
+                effectiveGravity = new Vector2(0f, 0f);
+                crouchFloatTime += Time.deltaTime;
+
+                if (crouchFloatTime > crouchFloatMaxTime)
+                {
+                    float falloffTime = crouchFloatTime - crouchFloatMaxTime;
+                    if (falloffTime < crouchFloatFalloffTime)
+                        effectiveGravity = gravity * (falloffTime / crouchFloatFalloffTime);
+                    else
+                        EndCrouch();
+                }
+            }
+
+        if (!stateMan.bIsCrouching && inHandler.Vertical == -1f && stateMan.bOnGround && !bLeftGround)
+        {
+            stateMan.bIsCrouching = true;
+
+            if (Mathf.Abs(velocity.x) < maxSpeed.x * crouchSlideMinSpeed)
+                velocity.x = 0f;
+        }
+        else if (stateMan.bIsCrouching && inHandler.Vertical != -1f)
+            EndCrouch();
+    }
+
+    private void EndCrouch()
+    {
+        stateMan.bIsCrouching = false;
+        effectiveGravity = gravity;
+        crouchFloatTime = 0f;
     }
 
     private void CheckLeftGround()
@@ -551,14 +610,14 @@ public class Huevo : MonoBehaviour
         return false;
     }
 
-    private void CheckAnimation()
+    private void UpdateAnimation()
     {
         animator.SetBool("bOnGround", stateMan.bOnGround);
         animator.SetBool("bNearWall", stateMan.bNearWall);
         animator.SetBool("bHangingOnWall", stateMan.bHangingToWall);
         animator.SetBool("bIsDashing", stateMan.bIsDashing);
         animator.SetBool("bIsStill", Mathf.Abs(velocity.x) < maxSpeed.x * 0.05f);
-        animator.SetBool("bIsCrouching", false);
+        animator.SetBool("bIsCrouching", stateMan.bIsCrouching);
 
         if (inHandler.Horizontal != 0)
             if (Mathf.Sign(pawn.localScale.x) != inHandler.Horizontal)
