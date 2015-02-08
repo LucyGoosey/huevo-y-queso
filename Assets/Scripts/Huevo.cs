@@ -8,6 +8,7 @@ using System.Collections;
 [ExecuteInEditMode]
 #endif
 [RequireComponent(typeof(InputHandler))]
+[RequireComponent(typeof(Animator))]
 public class Huevo : MonoBehaviour
 {
     private class StateManager
@@ -18,8 +19,10 @@ public class Huevo : MonoBehaviour
         public bool bIsDashing = false;
     }
 
-    #region Variables
-    #region Private
+    #region Private variables
+    private Animator animator;
+    private Transform pawn;
+    
     private Rect worldHitBox;
 
     private InputHandler inHandler;
@@ -53,6 +56,7 @@ public class Huevo : MonoBehaviour
     private bool    bIsSlamming = false;
     #endregion
 
+    #region Public Variables
     public Vector2 hitboxWidthHeight = new Vector2(1.6f, 1.6f);
     [Range(0f, 1f)]
     public float   wallHitBoxHeightPct = 0.51f;
@@ -93,6 +97,9 @@ public class Huevo : MonoBehaviour
 
     void Start()
     {
+        animator = GetComponent<Animator>();
+        pawn = transform.FindChild("Pawn");
+
         inHandler = GetComponent<InputHandler>();
         inHandler.SetPlayerNum(playerNum);
 
@@ -358,18 +365,6 @@ public class Huevo : MonoBehaviour
         if (wallKickInputBlock != (int)Mathf.Sign(inHandler.Horizontal))
             wallKickInputBlock = 0;
 
-        if (stateMan.bIsDashing)
-        {
-            timeInDash += Time.deltaTime;
-
-            if (timeInDash > maxDashTime)
-            {
-                stateMan.bIsDashing = false;
-                inHandler.InputEnabled = true;
-                timeInDash = 0f;
-            }
-        }
-
         HandleJump();
         HandleDash();
 
@@ -380,6 +375,7 @@ public class Huevo : MonoBehaviour
         }
 
         CheckLeftGround();
+        CheckAnimation();
     }
 
     private void HandleJump()
@@ -471,6 +467,18 @@ public class Huevo : MonoBehaviour
 
     private void HandleDash()
     {
+        if (stateMan.bIsDashing)
+        {
+            timeInDash += Time.deltaTime;
+
+            if (timeInDash > maxDashTime)
+            {
+                stateMan.bIsDashing = false;
+                inHandler.InputEnabled = true;
+                timeInDash = 0f;
+            }
+        }
+
         if (!stateMan.bIsDashing
             && inHandler.Dash != 0 && dashCombo < maxDashes)
         {
@@ -540,6 +548,20 @@ public class Huevo : MonoBehaviour
             return true;
 
         return false;
+    }
+
+    private void CheckAnimation()
+    {
+        animator.SetBool("bOnGround", stateMan.bOnGround);
+        animator.SetBool("bNearWall", stateMan.bNearWall);
+        animator.SetBool("bHangingOnWall", stateMan.bHangingToWall);
+        animator.SetBool("bIsDashing", stateMan.bIsDashing);
+        animator.SetBool("bIsStill", Mathf.Abs(velocity.x) < maxSpeed.x * 0.05f);
+        animator.SetBool("bIsCrouching", false);
+
+        if (inHandler.Horizontal != 0)
+            if (Mathf.Sign(pawn.localScale.x) != inHandler.Horizontal)
+                pawn.localScale = new Vector3(pawn.localScale.x * -1f, pawn.localScale.y, pawn.localScale.z);
     }
     #endregion
 
