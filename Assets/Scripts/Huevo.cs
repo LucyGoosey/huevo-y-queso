@@ -49,6 +49,8 @@ public class Huevo : MonoBehaviour
     private float   maxDashTime;
     private float   timeInDash = 0f;
     private float   dashDir = 0f;
+
+    private bool    bIsSlamming = false;
     #endregion
 
     public Vector2 hitboxWidthHeight = new Vector2(1.6f, 1.6f);
@@ -206,6 +208,12 @@ public class Huevo : MonoBehaviour
         timeOnWall = 0;
 
         dashCombo = 0;
+
+        if (bIsSlamming)
+        {
+            bIsSlamming = false;
+            inHandler.InputEnabled = true;
+        }
     }
 
     private void CalculateVelocity()
@@ -365,8 +373,11 @@ public class Huevo : MonoBehaviour
         HandleJump();
         HandleDash();
 
-        if(!stateMan.bOnGround)
+        if (!stateMan.bOnGround)
+        {
             HandleWallHang();
+            HandleSlam();
+        }
 
         CheckLeftGround();
     }
@@ -491,6 +502,15 @@ public class Huevo : MonoBehaviour
         {
             gravity = preHangGravity;
             stateMan.bHangingToWall = false;
+        }
+    }
+
+    private void HandleSlam()
+    {
+        if (!stateMan.bOnGround && inHandler.Slam.bDown && !bIsSlamming)
+        {
+            bIsSlamming = true;
+            velocity = new Vector2(0, -maxSpeed.y);
         }
     }
 
