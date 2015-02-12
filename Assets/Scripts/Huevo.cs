@@ -13,6 +13,7 @@ public class Huevo : MonoBehaviour
 {
     private class StateManager
     {
+        public bool bIsAlive = false;
         public bool bOnGround = false;
         public bool bNearWall = false;
         public bool bHangingToWall = false;
@@ -58,6 +59,9 @@ public class Huevo : MonoBehaviour
     private bool    bIsSlamming = false;
 
     private float   crouchFloatTime = 0f;
+
+    private DeathBubble dBubble;
+    private float   sqrDeadMaxSpeed;
     #endregion
 
     #region Public Variables
@@ -102,6 +106,10 @@ public class Huevo : MonoBehaviour
     public float crouchFloatMinSpeed = 0.5f;
     public float crouchFloatMaxTime = 0.4f;
     public float crouchFloatFalloffTime = 0.1f;
+
+    public float deadAccel = 30f;
+    public float deadMaxSpeed = 20f;
+    public float deadDragMagic = 0.033f;
     #endregion
 
     void Start()
@@ -116,14 +124,53 @@ public class Huevo : MonoBehaviour
         worldHitBox.height = hitboxWidthHeight.y;
 
         maxDashTime = dashPauseTime + dashMotionTime + dashOverflowTime;
+
+        sqrDeadMaxSpeed = Mathf.Pow(deadMaxSpeed, 2f);
+
+        dBubble = gameObject.transform.FindChild("Death Bubble").GetComponent<DeathBubble>();
+
+        stateMan.bIsAlive = true;
+    }
+
+    public void OnKill()
+    {
+        if (!stateMan.bIsAlive)
+            return;
+
+        transform.parent = null;
+        velocity = Vector2.zero;
+        stateMan = new StateManager();
+        collider2D.enabled = false;
+        dBubble.gameObject.SetActive(true);
+        inHandler.InputEnabled = true;
+    }
+
+    public void OnBubblePop()
+    {
+        if (stateMan.bIsAlive)
+            return;
+
+        stateMan.bIsAlive = true;
+        velocity /= 2f;
+        collider2D.enabled = true;
+        dBubble.gameObject.SetActive(false);
+        effectiveGravity = gravity;
     }
 
     #region FixedUpdate
     void FixedUpdate()
     {
+        if (stateMan.bIsAlive)
+            FixedUpdateAlive();
+        else
+            FixedUpdateDead();
+    }
+
+    void FixedUpdateAlive()
+    {
         PhysicsCheck();
 
-        transform.position += (Vector3)(velocity * vDeltaTime);
+        rigidbody2D.MovePosition(transform.position + (Vector3)(velocity * vDeltaTime));
         worldHitBox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
 
         CalculateVelocity();
@@ -257,9 +304,9 @@ public class Huevo : MonoBehaviour
             velocity.x += velAdd;
         }
         else if (stateMan.bOnGround)
-            AddHorizontalDrag(groundDragMagic, groundDragCof);
+            AddDrag(ref velocity.x, maxSpeed.x, groundDragMagic, groundDragCof);
         else if (!stateMan.bNearWall)
-            AddHorizontalDrag(airDragMagic, airDragCof);
+            AddDrag(ref velocity.x, maxSpeed.x, airDragMagic, airDragCof);
 
         // Limit the velocity to the max speed
         if (Mathf.Abs(velocity.x) > maxSpeed.x)
@@ -350,27 +397,59 @@ public class Huevo : MonoBehaviour
         return groundHit;
     }
 
-    private void AddHorizontalDrag(float _dragMagic, float _dragCof = 1f)
+    private void AddDrag(ref float _out, float _maxSpeed, float _dragMagic, float _dragCof = 1f)
     {
-        if (Mathf.Abs(velocity.x) > maxSpeed.x * 0.05f)
+        if (Mathf.Abs(_out) > _maxSpeed * 0.05f)
         {
-            float vX = velocity.x;
+            float vX = _out;
             // Magic be here
             vX -= vX * (_dragMagic * Mathf.Pow(_dragCof, 2));
 
-            if (Mathf.Sign(vX) != Mathf.Sign(velocity.x))
-                velocity.x = 0f;
+            if (Mathf.Sign(vX) != Mathf.Sign(_out))
+                _out = 0f;
             else
-                velocity.x = vX;
+                _out = vX;
         }
         else
-            velocity.x = 0f;
+            _out = 0f;
+    }
+
+    private void FixedUpdateDead()
+    {
+        velocity.x += deadAccel * inHandler.Horizontal * vDeltaTime;
+        velocity.y += deadAccel * inHandler.Vertical * vDeltaTime;
+
+        if (velocity.sqrMagnitude > sqrDeadMaxSpeed)
+            velocity = velocity.normalized * deadMaxSpeed;
+
+        if(inHandler.Horizontal == 0)
+            AddDrag(ref velocity.x, deadMaxSpeed, deadDragMagic);
+        if(inHandler.Vertical == 0)
+            AddDrag(ref velocity.y, deadMaxSpeed, deadDragMagic);
+
+        rigidbody2D.MovePosition(transform.position + (Vector3)(velocity * Time.deltaTime));
     }
     #endregion
 
     #region Update
     void Update()
     {
+        if (stateMan.bIsAlive)
+            UpdateAlive();
+        else
+            UpdateDead();
+
+        UpdateAnimation();
+    }
+
+    private void UpdateAlive()
+    {
+        if(inHandler.Bubble.bDown)
+        {
+            OnKill();
+            return;
+        }
+
         if (wallKickInputBlock != (int)Mathf.Sign(inHandler.Horizontal))
             wallKickInputBlock = 0;
 
@@ -386,7 +465,6 @@ public class Huevo : MonoBehaviour
         HandleCrouch();
 
         CheckLeftGround();
-        UpdateAnimation();
     }
 
     private void HandleJump()
@@ -608,6 +686,12 @@ public class Huevo : MonoBehaviour
             return true;
 
         return false;
+    }
+
+    private void UpdateDead()
+    {
+        if (inHandler.Bubble.bDown)
+            OnBubblePop();
     }
 
     private void UpdateAnimation()

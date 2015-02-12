@@ -15,6 +15,7 @@ class InputHandler : MonoBehaviour
 
     private Key jump = new Key();
     private Key slam = new Key();
+    private Key bubble = new Key();
 
     private float horizontal = 0f;
     private float vertical = 0f;
@@ -25,6 +26,7 @@ class InputHandler : MonoBehaviour
 
     public Key Jump { get { return (bHandleInput ? jump : new Key()); } }
     public Key Slam { get { return (bHandleInput ? slam : new Key()); } }
+    public Key Bubble { get { return (bHandleInput ? bubble : new Key()); } }
 
     public float Horizontal { get { return (bHandleInput ? horizontal : 0f); } }
     public float Vertical { get { return (bHandleInput ? vertical : 0f); } }
@@ -38,6 +40,7 @@ class InputHandler : MonoBehaviour
 
         HandleKey("Jump_" + playerNum, jump);
         HandleKey("Slam_" + playerNum, slam);
+        HandleKey("Bubble_" + playerNum, bubble);
 
         HandleAxis("Horizontal_" + playerNum, ref horizontal);
         HandleAxis("Vertical_" + playerNum, ref vertical);
