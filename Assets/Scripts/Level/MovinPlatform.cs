@@ -20,11 +20,14 @@ public class MovinPlatform : MonoBehaviour {
 	void Update () {
         if (bShouldMove)
         {
-            transform.position = Vector2.Lerp(startpos, target.position, t);
+            rigidbody2D.MovePosition(Vector2.Lerp(startpos, target.position, t));
             t += speed;
             if (t >= 1 || t <= 0)
-            {if (bShouldRepeat)
-                speed = -speed;
+            {
+                t = t > 1 ? 1 : 0;
+
+                if (bShouldRepeat)
+                    speed = -speed;
             }
         }
 	}
