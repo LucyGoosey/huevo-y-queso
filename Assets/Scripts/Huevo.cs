@@ -176,11 +176,49 @@ public class Huevo : MonoBehaviour
         CalculateVelocity();
     }
 
+    #region Physics Check
     private void PhysicsCheck()
+    {
+        RaycastHit2D ground, ceiling, wall, otherwall;
+        CollisionCheck(out ground, out ceiling, out wall, out otherwall);
+
+        HandleGroundHit(ground);
+        HandleCeilingHit(ceiling);
+
+        // We're not near a wall unless we are near a wall!
+        stateMan.bNearWall = false;
+
+        HandleWallHit(wall);
+        HandleOtherwallHit(otherwall);
+
+        // If we're not on the ground or near a wall, we shouldn't "stick" to anything
+        if(!stateMan.bOnGround && !stateMan.bNearWall)
+            transform.parent = null;
+    }
+
+    private void CollisionCheck(out RaycastHit2D _ground, out RaycastHit2D _ceiling,
+                                out RaycastHit2D _wall, out RaycastHit2D _otherwall)
     {
         // Check for collision with the ground
         RaycastHit2D hit = GroundCheck(0, -1);
-        Collider2D ground = hit.collider;
+        _ground = hit;
+
+        // Check for collision with the ceiling
+        hit = GroundCheck(0, 1);
+        _ceiling = hit;
+
+        // Check for collision with the wall to the relative right of Huevo
+        hit = GroundCheck(1, 0);
+        _wall = hit;
+
+        // Check for collision with the wall to the relative left
+        hit = GroundCheck(-1, 0);
+        _otherwall = hit;
+    }
+
+    private void HandleGroundHit(RaycastHit2D _ground)
+    {
+        Collider2D ground = _ground.collider;
         if (ground != null)
         {
             if(velocity.y < 0f)
@@ -198,10 +236,11 @@ public class Huevo : MonoBehaviour
             bLeftGround = true;
             leftGroundForFrames = 0;
         }
+    }
 
-        // Check for collision with the ceiling
-        hit = GroundCheck(0, 1);
-        Collider2D ceiling = hit.collider;
+    private void HandleCeilingHit(RaycastHit2D _ceiling)
+    {
+        Collider2D ceiling = _ceiling.collider;
         if (ceiling != null)
         {
             if(velocity.y > 0f)
@@ -209,55 +248,50 @@ public class Huevo : MonoBehaviour
 
             transform.position = new Vector3(transform.position.x, ceiling.bounds.min.y - hitboxWidthHeight.y);
         }
+    }
 
-        // We're not near a wall unless we are near a wall!
-        stateMan.bNearWall = false;
-
-        // Check for collision with the wall to the relative right of Huevo
-        hit = GroundCheck(1, 0);
-        Collider2D wall = hit.collider;
-        if (wall != null)
+    private void HandleWallHit(RaycastHit2D _wall)
+    {
+        Collider2D coll = _wall.collider;
+        if (coll != null)
         {
             if(velocity.x > 0f)
                 velocity.x = 0f;
 
-            transform.position = new Vector3(wall.bounds.min.x - (hitboxWidthHeight.x / 2), transform.position.y);
+            transform.position = new Vector3(coll.bounds.min.x - (hitboxWidthHeight.x / 2), transform.position.y);
 
-            if (!stateMan.bOnGround && hit.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
+            if (!stateMan.bOnGround && _wall.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
             {
                 stateMan.bNearWall = true;
                 wallSide = 1;
                 bBlockJump = false;
 
-                if (transform.parent != wall.transform)
-                    transform.parent = wall.transform;
+                if (transform.parent != coll.transform)
+                    transform.parent = coll.transform;
             }
         }
+    }
 
-        // Check for collision with the wall to the relative left
-        hit = GroundCheck(-1, 0);
-        Collider2D otherWall = hit.collider;
-        if (otherWall != null)
+    private void HandleOtherwallHit(RaycastHit2D _otherwall)
+    {
+        Collider2D coll = _otherwall.collider;
+        if (coll != null)
         {
-            if(velocity.x < 0f)
+            if (velocity.x < 0f)
                 velocity.x = 0f;
 
-            transform.position = new Vector3(otherWall.bounds.max.x + (hitboxWidthHeight.x / 2), transform.position.y);
+            transform.position = new Vector3(coll.bounds.max.x + (hitboxWidthHeight.x / 2), transform.position.y);
 
-            if (!stateMan.bOnGround && !stateMan.bNearWall && hit.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
+            if (!stateMan.bOnGround && !stateMan.bNearWall && _otherwall.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
             {
                 stateMan.bNearWall = true;
                 wallSide = -1;
                 bBlockJump = false;
 
-                if (transform.parent != otherWall.transform)
-                    transform.parent = otherWall.transform;
+                if (transform.parent != coll.transform)
+                    transform.parent = coll.transform;
             }
         }
-
-        // If we're not on the ground or near a wall, we shouldn't "stick" to anything
-        if(!stateMan.bOnGround && !stateMan.bNearWall)
-            transform.parent = null;
     }
 
     private void Grounded()
@@ -278,6 +312,7 @@ public class Huevo : MonoBehaviour
             inHandler.InputEnabled = true;
         }
     }
+    #endregion
 
     private void CalculateVelocity()
     {
@@ -311,13 +346,19 @@ public class Huevo : MonoBehaviour
         // Limit the velocity to the max speed
         if (Mathf.Abs(velocity.x) > maxSpeed.x)
             velocity.x = maxSpeed.x * Mathf.Sign(velocity.x);
-        if (!stateMan.bNearWall || bIsSlamming)
+        if (ShouldWallGrind())
         {
-            if (Mathf.Abs(velocity.y) > maxSpeed.y)
-                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y);
-        }else
             if (Mathf.Abs(velocity.y) > maxSpeed.y * wallGrindMod)
                 velocity.y = maxSpeed.y * Mathf.Sign(velocity.y) * wallGrindMod;
+        }else
+            if (Mathf.Abs(velocity.y) > maxSpeed.y)
+                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y);
+    }
+
+    private bool ShouldWallGrind()
+    {
+        return stateMan.bNearWall && !stateMan.bHangingToWall 
+                && (pawn.transform.localScale.x == wallSide) && !bIsSlamming;
     }
 
     private bool IsBlockedByDash()
@@ -505,7 +546,7 @@ public class Huevo : MonoBehaviour
         else if (bLongJumping) // Otherwise, if we are long jumping
         {
             // Check if jump is being held
-            if (inHandler.Jump.bHeld)
+            if (inHandler.Jump.bHeld && !ShouldWallGrind())
                 velocity.y += longJumpForce; // And long jump if it is
             else
                 bLongJumping = false;       // otherwise, stop long jumping
@@ -697,7 +738,7 @@ public class Huevo : MonoBehaviour
     private void UpdateAnimation()
     {
         animator.SetBool("bOnGround", stateMan.bOnGround);
-        animator.SetBool("bNearWall", stateMan.bNearWall);
+        animator.SetBool("bShouldWallGrind", ShouldWallGrind());
         animator.SetBool("bHangingOnWall", stateMan.bHangingToWall);
         animator.SetBool("bIsDashing", stateMan.bIsDashing);
         animator.SetBool("bIsStill", Mathf.Abs(velocity.x) < maxSpeed.x * 0.05f);
