@@ -493,10 +493,9 @@ public class Huevo : MonoBehaviour
         HandleDash();
 
         if (!stateMan.bOnGround)
-        {
             HandleWallHang();
-            HandleSlam();
-        }
+
+        HandleSlam();
 
         HandleCrouch();
 
@@ -642,7 +641,7 @@ public class Huevo : MonoBehaviour
 
     private void HandleSlam()
     {
-        if (!stateMan.bOnGround && inHandler.Slam.bDown && !bIsSlamming)
+        if ((!stateMan.bOnGround || bLeftGround) && inHandler.Slam.bDown && !bIsSlamming)
         {
             bIsSlamming = true;
             inHandler.InputEnabled = false;
