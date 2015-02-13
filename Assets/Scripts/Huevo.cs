@@ -179,41 +179,28 @@ public class Huevo : MonoBehaviour
     #region Physics Check
     private void PhysicsCheck()
     {
-        RaycastHit2D ground, ceiling, wall, otherwall;
-        CollisionCheck(out ground, out ceiling, out wall, out otherwall);
+        // Check for collision with the ground
+        RaycastHit2D hit = GroundCheck(0, -1);
+        HandleGroundHit(hit);
 
-        HandleGroundHit(ground);
-        HandleCeilingHit(ceiling);
+        // Check for collision with the ceiling
+        hit = GroundCheck(0, 1);
+        HandleCeilingHit(hit);
 
         // We're not near a wall unless we are near a wall!
         stateMan.bNearWall = false;
 
-        HandleWallHit(wall);
-        HandleOtherwallHit(otherwall);
+        // Check for collision with the wall to the relative right of Huevo
+        hit = GroundCheck(1, 0);
+        HandleWallHit(hit);
+
+        // Check for collision with the wall to the relative left
+        hit = GroundCheck(-1, 0);        
+        HandleOtherwallHit(hit);
 
         // If we're not on the ground or near a wall, we shouldn't "stick" to anything
         if(!stateMan.bOnGround && !stateMan.bNearWall)
             transform.parent = null;
-    }
-
-    private void CollisionCheck(out RaycastHit2D _ground, out RaycastHit2D _ceiling,
-                                out RaycastHit2D _wall, out RaycastHit2D _otherwall)
-    {
-        // Check for collision with the ground
-        RaycastHit2D hit = GroundCheck(0, -1);
-        _ground = hit;
-
-        // Check for collision with the ceiling
-        hit = GroundCheck(0, 1);
-        _ceiling = hit;
-
-        // Check for collision with the wall to the relative right of Huevo
-        hit = GroundCheck(1, 0);
-        _wall = hit;
-
-        // Check for collision with the wall to the relative left
-        hit = GroundCheck(-1, 0);
-        _otherwall = hit;
     }
 
     private void HandleGroundHit(RaycastHit2D _ground)
@@ -332,7 +319,7 @@ public class Huevo : MonoBehaviour
         velocity += effectiveGravity * vDeltaTime;
 
         // Check for horizontal input, and apply acceleration if necessary
-        if (inHandler.Horizontal != 0f && wallKickInputBlock == 0)
+        if (inHandler.Horizontal != 0f && wallKickInputBlock == 0 && !stateMan.bIsCrouching)
         {
             float velAdd = accel * inHandler.Horizontal * vDeltaTime;
 
