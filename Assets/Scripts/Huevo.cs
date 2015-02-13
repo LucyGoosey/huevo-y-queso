@@ -260,14 +260,18 @@ public class Huevo : MonoBehaviour
 
             transform.position = new Vector3(coll.bounds.min.x - (hitboxWidthHeight.x / 2), transform.position.y);
 
-            if (!stateMan.bOnGround && _wall.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
+            if (_wall.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
             {
                 stateMan.bNearWall = true;
                 wallSide = 1;
-                bBlockJump = false;
 
-                if (transform.parent != coll.transform)
-                    transform.parent = coll.transform;
+                if (!stateMan.bOnGround)
+                {
+                    bBlockJump = false;
+
+                    if (transform.parent != coll.transform)
+                        transform.parent = coll.transform;
+                }
             }
         }
     }
@@ -282,14 +286,18 @@ public class Huevo : MonoBehaviour
 
             transform.position = new Vector3(coll.bounds.max.x + (hitboxWidthHeight.x / 2), transform.position.y);
 
-            if (!stateMan.bOnGround && !stateMan.bNearWall && _otherwall.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
+            if (!stateMan.bNearWall && _otherwall.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
             {
                 stateMan.bNearWall = true;
                 wallSide = -1;
-                bBlockJump = false;
 
-                if (transform.parent != coll.transform)
-                    transform.parent = coll.transform;
+                if (!stateMan.bOnGround)
+                {
+                    bBlockJump = false;
+
+                    if (transform.parent != coll.transform)
+                        transform.parent = coll.transform;
+                }
             }
         }
     }
@@ -357,7 +365,7 @@ public class Huevo : MonoBehaviour
 
     private bool ShouldWallGrind()
     {
-        return stateMan.bNearWall && !stateMan.bHangingToWall 
+        return !stateMan.bOnGround && stateMan.bNearWall && !stateMan.bHangingToWall 
                 && (pawn.transform.localScale.x == wallSide) && !bIsSlamming;
     }
 
@@ -520,7 +528,7 @@ public class Huevo : MonoBehaviour
             if(stateMan.bIsCrouching)
                 EndCrouch();
 
-            if (stateMan.bNearWall)
+            if (stateMan.bNearWall && !stateMan.bOnGround)
             {
                 velocity = wallKickForce;
                 velocity.x *= -wallSide;
@@ -611,8 +619,9 @@ public class Huevo : MonoBehaviour
             }
         }
 
-        if (!stateMan.bIsDashing
-            && inHandler.Dash != 0 && dashCombo < maxDashes)
+        if (!stateMan.bIsDashing && inHandler.Dash != 0 
+            && dashCombo < maxDashes
+            && (!stateMan.bNearWall || (stateMan.bNearWall && inHandler.Dash != wallSide)))
         {
             dashDir = inHandler.Dash;
             stateMan.bIsDashing = true;
