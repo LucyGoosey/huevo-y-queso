@@ -26,7 +26,7 @@ class InputHandler : MonoBehaviour
 
     public Key Jump { get { return (bHandleInput ? jump : new Key()); } }
     public Key Slam { get { return (bHandleInput ? slam : new Key()); } }
-    public Key Bubble { get { return (bHandleInput ? bubble : new Key()); } }
+    public Key Bubble { get { return bubble; } }
 
     public float Horizontal { get { return (bHandleInput ? horizontal : 0f); } }
     public float Vertical { get { return (bHandleInput ? vertical : 0f); } }
