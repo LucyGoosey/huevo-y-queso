@@ -26,6 +26,8 @@ public class Huevo : MonoBehaviour
     private Transform pawn;
     
     private Rect worldHitBox;
+    private Transform handPos;
+    public Vector3 HandPos { get { return handPos.localPosition; } }
 
     private InputHandler inHandler;
     private StateManager stateMan = new StateManager();
@@ -62,6 +64,8 @@ public class Huevo : MonoBehaviour
 
     private DeathBubble dBubble;
     private float   sqrDeadMaxSpeed;
+
+    public Attachable attachedTo;
     #endregion
 
     #region Public Variables
@@ -117,6 +121,8 @@ public class Huevo : MonoBehaviour
         animator = GetComponent<Animator>();
         pawn = transform.FindChild("Pawn");
 
+        handPos = transform.FindChild("Hand");
+
         inHandler = GetComponent<InputHandler>();
         inHandler.SetPlayerNum(playerNum);
 
@@ -157,6 +163,22 @@ public class Huevo : MonoBehaviour
         effectiveGravity = gravity;
     }
 
+    public void AttachToObject(Attachable _object)
+    {
+        transform.parent = _object.transform;
+        attachedTo = _object;
+        velocity = Vector2.zero;
+    }
+
+    public void DetachFromObject()
+    {
+        if (attachedTo != null)
+        {
+            transform.parent = null;
+            attachedTo = null;
+        }
+    }
+
     #region FixedUpdate
     void FixedUpdate()
     {
@@ -167,8 +189,11 @@ public class Huevo : MonoBehaviour
     }
 
     void FixedUpdateAlive()
-    {
+    {            
         PhysicsCheck();
+
+        if (attachedTo != null)
+            return;
 
         rigidbody2D.MovePosition(transform.position + (Vector3)(velocity * vDeltaTime));
         worldHitBox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
@@ -318,6 +343,27 @@ public class Huevo : MonoBehaviour
 
         velocity += effectiveGravity * vDeltaTime;
 
+        GetHorizontalInput();
+
+        if (stateMan.bOnGround && inHandler.Horizontal == 0f)
+            AddDrag(ref velocity.x, maxSpeed.x, groundDragMagic, groundDragCof);
+        else if (!stateMan.bNearWall)
+            AddDrag(ref velocity.x, maxSpeed.x, airDragMagic, airDragCof);
+
+        // Limit the velocity to the max speed
+        if (Mathf.Abs(velocity.x) > maxSpeed.x)
+            velocity.x = maxSpeed.x * Mathf.Sign(velocity.x);
+        if (ShouldWallGrind())
+        {
+            if (Mathf.Abs(velocity.y) > maxSpeed.y * wallGrindMod)
+                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y) * wallGrindMod;
+        }else
+            if (Mathf.Abs(velocity.y) > maxSpeed.y)
+                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y);
+    }
+
+    private void GetHorizontalInput()
+    {
         // Check for horizontal input, and apply acceleration if necessary
         if (inHandler.Horizontal != 0f && wallKickInputBlock == 0 && !stateMan.bIsCrouching)
         {
@@ -333,21 +379,6 @@ public class Huevo : MonoBehaviour
 
             velocity.x += velAdd;
         }
-        else if (stateMan.bOnGround)
-            AddDrag(ref velocity.x, maxSpeed.x, groundDragMagic, groundDragCof);
-        else if (!stateMan.bNearWall)
-            AddDrag(ref velocity.x, maxSpeed.x, airDragMagic, airDragCof);
-
-        // Limit the velocity to the max speed
-        if (Mathf.Abs(velocity.x) > maxSpeed.x)
-            velocity.x = maxSpeed.x * Mathf.Sign(velocity.x);
-        if (ShouldWallGrind())
-        {
-            if (Mathf.Abs(velocity.y) > maxSpeed.y * wallGrindMod)
-                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y) * wallGrindMod;
-        }else
-            if (Mathf.Abs(velocity.y) > maxSpeed.y)
-                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y);
     }
 
     private bool ShouldWallGrind()
@@ -483,6 +514,12 @@ public class Huevo : MonoBehaviour
         if(inHandler.Bubble.bDown)
         {
             OnKill();
+            return;
+        }
+
+        if (attachedTo != null)
+        {
+
             return;
         }
 

@@ -10,17 +10,16 @@ public class MovinPlatform : MonoBehaviour {
     public Vector3 startpos;
     public bool bShouldRepeat;
 
-	// Use this for initialization
-	void Start () {
+	void Start ()
+    {
         startpos = transform.position;
-	
 	}
-	
-	// Update is called once per frame
-	void Update () {
+
+	void FixedUpdate ()
+    {
         if (bShouldMove)
         {
-            rigidbody2D.MovePosition(Vector2.Lerp(startpos, target.position, t));
+            transform.position = Vector2.Lerp(startpos, target.position, t);
             t += speed;
             if (t >= 1 || t <= 0)
             {
@@ -31,9 +30,4 @@ public class MovinPlatform : MonoBehaviour {
             }
         }
 	}
-
-    void OnTriggerEnter()
-    {
-
-    }
 }
