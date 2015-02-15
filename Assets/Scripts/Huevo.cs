@@ -36,6 +36,7 @@ public class Huevo : MonoBehaviour
     private Vector2 linecastCount = new Vector2(5, 5);
 
     private Vector2 velocity = Vector2.zero;
+    public Vector2 Velocity { get { return velocity; } }
     private float   vDeltaTime = 0;
 
     private Vector2 effectiveGravity = new Vector2(0f, -24f);
@@ -195,10 +196,12 @@ public class Huevo : MonoBehaviour
 
     void FixedUpdateAlive()
     {            
-        PhysicsCheck();
+        CollisionCheck();
 
         if (attachedTo != null)
+        {
             return;
+        }
 
         rigidbody2D.MovePosition(transform.position + (Vector3)(velocity * vDeltaTime));
         worldHitBox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
@@ -206,8 +209,8 @@ public class Huevo : MonoBehaviour
         CalculateVelocity();
     }
 
-    #region Physics Check
-    private void PhysicsCheck()
+    #region Collision Check
+    private void CollisionCheck()
     {
         Rect testHitbox = worldHitBox;
         testHitbox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));

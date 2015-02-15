@@ -13,7 +13,7 @@ public class Attachable : MonoBehaviour
             Attach(_coll.transform.parent.GetComponent<Huevo>());
     }
 
-    private void Attach(Huevo _h)
+    virtual protected void Attach(Huevo _h)
     {
         if (!attached.Contains(_h))
         {
@@ -22,7 +22,7 @@ public class Attachable : MonoBehaviour
         }
     }
 
-    private void Detach(Huevo _h)
+    virtual protected void Detach(Huevo _h)
     {
         if(attached.Contains(_h))
         {
