@@ -24,12 +24,14 @@ public class Huevo : MonoBehaviour
     #region Private variables
     private Animator animator;
     private Transform pawn;
+    public Transform Pawn { get { return pawn; } }
     
     private Rect worldHitBox;
     private Transform handPos;
     public Vector3 HandPos { get { return handPos.localPosition; } }
 
     private InputHandler inHandler;
+    public InputHandler InHandler { get { return inHandler; } }
     private StateManager stateMan = new StateManager();
 
     private float   groundDistanceCheck = 0.1f;
@@ -141,6 +143,11 @@ public class Huevo : MonoBehaviour
         dBubble = gameObject.transform.FindChild("Death Bubble").GetComponent<DeathBubble>();
 
         stateMan.bIsAlive = true;
+    }
+
+    public void AddForce(Vector2 _force)
+    {
+        velocity += _force;
     }
 
     public void OnKill()

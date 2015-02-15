@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-public class Swinger : Attachable {
+public class HaltingSwinger : Attachable {
 
     public float length = 3f;
     private Dictionary<Huevo, float> angVels = new Dictionary<Huevo, float>();
@@ -17,8 +17,15 @@ public class Swinger : Attachable {
                 Vector3 relPos = (attached[i].transform.position + attached[i].HandPos) - transform.position;
                 float rad = Mathf.Atan2(relPos.y, relPos.x);
 
-                if (attached[i].InHandler.Horizontal != 0f && rad < -(Mathf.PI / 4f) && rad > -(Mathf.PI - (Mathf.PI / 4f)))
-                    angVels[attached[i]] -= 10f * attached[i].InHandler.Horizontal * Mathf.Sin(rad) * Time.deltaTime;
+                float pct = Mathf.Abs(rad);
+                pct = pct > Mathf.PI / 2f ? (Mathf.PI / 2f) - (pct - (Mathf.PI / 2f)) : pct;
+                pct /= Mathf.PI / 2f;
+
+                if (attached[i].InHandler.Horizontal != 0f)
+                    if (rad < -(Mathf.PI / 4f) && rad > -(Mathf.PI - (Mathf.PI / 4f)))
+                        angVels[attached[i]] -= 10f * attached[i].InHandler.Horizontal * Mathf.Sin(rad) * Time.deltaTime * pct;
+                    else
+                        angVels[attached[i]] = 0f;
                 else
                     angVels[attached[i]] += -24f * Mathf.Cos(rad) * Time.deltaTime;
 
