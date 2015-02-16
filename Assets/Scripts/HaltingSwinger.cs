@@ -14,26 +14,27 @@ public class HaltingSwinger : Attachable {
         for (int i = 0; i < attached.Count; ++i)
             if (attached[i] != null)
             {
-                Vector3 relPos = (attached[i].transform.position + attached[i].HandPos) - transform.position;
+                Huevo huevo = attached[i].huevo;
+                Vector3 relPos = (huevo.transform.position + huevo.HandPos) - transform.position;
                 float rad = Mathf.Atan2(relPos.y, relPos.x);
 
                 float pct = Mathf.Abs(rad);
                 pct = pct > Mathf.PI / 2f ? (Mathf.PI / 2f) - (pct - (Mathf.PI / 2f)) : pct;
                 pct /= Mathf.PI / 2f;
 
-                if (attached[i].InHandler.Horizontal != 0f)
-                    if (rad < -(Mathf.PI / 4f) && rad > -(Mathf.PI - (Mathf.PI / 4f)))
-                        angVels[attached[i]] -= 10f * attached[i].InHandler.Horizontal * Mathf.Sin(rad) * Time.deltaTime * pct;
+                if (huevo.InHandler.Horizontal != 0f)
+                    if (rad < -(Mathf.PI / 8f) && rad > -(Mathf.PI - (Mathf.PI / 8f)))
+                        angVels[huevo] -= 10f * huevo.InHandler.Horizontal * Mathf.Sin(rad) * Time.deltaTime * pct;
                     else
-                        angVels[attached[i]] = 0f;
+                        angVels[huevo] = 0f;
                 else
-                    angVels[attached[i]] += -24f * Mathf.Cos(rad) * Time.deltaTime;
+                    angVels[huevo] += -24f * Mathf.Cos(rad) * Time.deltaTime;
 
                 float dx, dy;
                 dx = dy = 0f;
-                if (angVels[attached[i]] != 0f)
+                if (angVels[huevo] != 0f)
                 {
-                    rad += angVels[attached[i]] * Time.deltaTime;
+                    rad += angVels[huevo] * Time.deltaTime;
                     rad = rad > Mathf.PI ? -(Mathf.PI - (rad - Mathf.PI)) : rad < Mathf.PI ? Mathf.PI + (rad + Mathf.PI) : rad;
                     AddDrag(ref rad, 3.5f, 0.2f, 0.025f, 1f);
 
@@ -43,14 +44,14 @@ public class HaltingSwinger : Attachable {
                     Debug.Log("dx: " + dx);
                     Debug.Log("dy: " + dy);
 
-                    attached[i].transform.position += new Vector3(dx, dy);
+                    huevo.transform.position += new Vector3(dx, dy);
                 }
 
-                attached[i].transform.position = transform.position + (((attached[i].transform.position + attached[i].HandPos) - transform.position).normalized * length);
-                attached[i].transform.position -= attached[i].HandPos;
+                huevo.transform.position = transform.position + (((huevo.transform.position + huevo.HandPos) - transform.position).normalized * length);
+                huevo.transform.position -= huevo.HandPos;
 
-                if (attached[i].InHandler.Jump.bDown)
-                    Detach(attached[i--], dx, dy);
+                if (huevo.InHandler.Jump.bDown)
+                    Detach(attached[i--].huevo, dx, dy);
             }
     }
 
