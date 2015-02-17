@@ -181,6 +181,7 @@ public class Huevo : MonoBehaviour
         transform.parent = _object.transform;
         attachedTo = _object;
         velocity = Vector2.zero;
+        inHandler.InputEnabled = true;
     }
 
     public void DetachFromObject()

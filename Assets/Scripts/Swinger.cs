@@ -13,7 +13,6 @@ public class Swinger : Attachable
     }
 
     public float length = 3f;
-    private Dictionary<Huevo, float> angVels = new Dictionary<Huevo, float>();
 
     public bool ShouldApplyVelocity = true;
     public Vector2 jumpForce = new Vector2(0f, 10f);
@@ -21,8 +20,8 @@ public class Swinger : Attachable
     public float swingForce = 10f;
     public float gravity = -24f;
 
-    public float maxSpeed = 3.5f;
-    public float minSpeed = 0.5f;
+    public float maxSpeed = 5f;
+    private float minSpeed = 0f;
     public float dragMagic = 0.025f;
     public float dragCof = 1f;
 
@@ -31,40 +30,52 @@ public class Swinger : Attachable
     void FixedUpdate()
     {
         for (int i = 0; i < attached.Count; ++i)
-            if (attached[i] != null)
+            if (attached[i].huevo != null)
+                ProcessHuevo((SwingingHuevo)attached[i]);
+    }
+
+    private void ProcessHuevo(SwingingHuevo _sh)
+    {
+        Huevo huevo = _sh.huevo;
+
+        Vector3 relPos = (huevo.transform.position + huevo.HandPos) - transform.position;
+        float rad = Mathf.Atan2(relPos.y, relPos.x);
+
+        _sh.angVel += gravity * Mathf.Cos(rad) * Time.deltaTime;
+
+        if (huevo.InHandler.Horizontal != 0f)//&& rad < -(Mathf.PI / 4f) && rad > -(Mathf.PI - (Mathf.PI / 4f)))
+        {
+            _sh.angVel -= swingForce * huevo.InHandler.Horizontal * Mathf.Sin(rad) * Time.deltaTime;
+            float dir = huevo.InHandler.Horizontal;
+            if (rad < 0f)
             {
-                Huevo huevo = attached[i].huevo;
-                Vector3 relPos = (huevo.transform.position + huevo.HandPos) - transform.position;
-                float rad = Mathf.Atan2(relPos.y, relPos.x);
-
-                if (huevo.InHandler.Horizontal != 0f && rad < -(Mathf.PI / 4f) && rad > -(Mathf.PI - (Mathf.PI / 4f)))
-                    angVels[huevo] -= swingForce * huevo.InHandler.Horizontal * Mathf.Sin(rad) * Time.deltaTime;
-                else
-                    angVels[huevo] += gravity * Mathf.Cos(rad) * Time.deltaTime;
-
-                float dx, dy;
-                dx = dy = 0f;
-                if (angVels[huevo] != 0f)
-                {
-                    rad += angVels[huevo] * Time.deltaTime;
-                    rad = rad > Mathf.PI ? -(Mathf.PI - (rad - Mathf.PI)) : rad < Mathf.PI ? Mathf.PI + (rad + Mathf.PI) : rad;
-                    AddDrag(ref rad, maxSpeed, minSpeed, dragMagic, dragCof);
-
-                    dx = (length * Mathf.Cos(rad)) - relPos.x;
-                    dy = (length * Mathf.Sin(rad)) - relPos.y;
-
-                    Debug.Log("dx: " + dx);
-                    Debug.Log("dy: " + dy);
-
-                    huevo.transform.position += new Vector3(dx, dy);
-                }
-
-                huevo.transform.position = transform.position + (((huevo.transform.position + huevo.HandPos) - transform.position).normalized * length);
-                huevo.transform.position -= huevo.HandPos;
-
-                if (huevo.InHandler.Jump.bDown)
-                    Detach(huevo, dx, dy);
+                if (dir > 0 && rad < -(Mathf.PI / 2f))
+                    _sh.angVel -= swingForce * Mathf.Cos(rad) * Time.deltaTime;
+                else if (dir > 0 && rad > -(Mathf.PI /2f))
+                    _sh.angVel += swingForce * Mathf.Cos(rad) * Time.deltaTime;
+                else if (dir < 0 && rad > -(Mathf.PI / 2f))
+                    _sh.angVel -= swingForce * Mathf.Cos(rad) * Time.deltaTime;
+                else if(dir < 0 && rad < -(Mathf.PI / 2f))
+                    _sh.angVel += swingForce * Mathf.Cos(rad) * Time.deltaTime;
             }
+        }
+
+        AddDrag(ref _sh.angVel, maxSpeed, minSpeed, dragMagic, dragCof);
+
+        rad += _sh.angVel * Time.deltaTime;
+
+        Vector2 delta = Vector2.zero;
+
+        delta.x = Mathf.Cos(rad) - relPos.x;
+        delta.y = Mathf.Sin(rad) - relPos.y;
+
+        huevo.transform.position += (Vector3)delta;
+
+        huevo.transform.position = transform.position + (((huevo.transform.position + huevo.HandPos) - transform.position).normalized * length);
+        huevo.transform.position -= huevo.HandPos;
+
+        if (huevo.InHandler.Jump.bDown || huevo.InHandler.Jump.bHeld)
+            Detach(huevo);
     }
 
     private void AddDrag(ref float _out, float _maxSpeed, float _minSpeed, float _dragMagic, float _dragCof = 1f)
@@ -73,8 +84,10 @@ public class Swinger : Attachable
         // Magic be here
         vX -= vX * (_dragMagic * Mathf.Pow(_dragCof, 2));
 
-        if (Mathf.Sign(vX) != Mathf.Sign(_out) || Mathf.Abs(_out) < _minSpeed)
+        if (Mathf.Sign(vX) != Mathf.Sign(_out) || Mathf.Abs(vX) < _minSpeed)
             _out = 0f;
+        else if (Mathf.Abs(vX) > _maxSpeed)
+            _out = _maxSpeed * Mathf.Sign(vX);
         else
             _out = vX;
     }
@@ -82,26 +95,23 @@ public class Swinger : Attachable
     override protected void Attach(Huevo _h)
     {
         SwingingHuevo sh = new SwingingHuevo(_h);
-        if (!attached.Contains(sh))
+        if (IsHuevoAttached(_h) == null)
         {
-            angVels[_h] = 0f;
             sh.posOnVine = Vector2.Distance(transform.position, sh.huevo.transform.position);
             attached.Add(sh);
             sh.huevo.AttachToObject(this);
         }
     }
 
-    protected void Detach(Huevo _h, float _dx = 0f, float _dy = 0f)
+    override protected void Detach(Huevo _h)
     {
-        Vector3 relPos = (_h.transform.position + _h.HandPos) - transform.position;
-        if (ShouldApplyVelocity)
-            _h.AddForce(new Vector2((_dx / Time.deltaTime) + jumpForce.x, (_dy / Time.deltaTime) + jumpForce.y));
-        else
+        SwingingHuevo sh = (SwingingHuevo)IsHuevoAttached(_h);
+        if (sh != null)
+        {
+            base.Detach(_h);
+
+            Vector3 relPos = (_h.transform.position + _h.HandPos) - transform.position;
             _h.AddForce(new Vector2(jumpForce.x * _h.Pawn.localScale.x, jumpForce.y));
-
-        base.Detach(_h);
-
-        if(angVels.ContainsKey(_h))
-            angVels.Remove(_h);
+        }
     }
 }
