@@ -8,6 +8,8 @@ public class Attachable : MonoBehaviour
     {
         public Huevo huevo;
 
+        public float leftFor = 0f;
+
         public AttachableHuevo(Huevo _h)
         {
             huevo = _h;
@@ -15,10 +17,23 @@ public class Attachable : MonoBehaviour
     }
 
     public List<AttachableHuevo> attached = new List<AttachableHuevo>();
+    private List<AttachableHuevo> detached = new List<AttachableHuevo>();
+
+    public float timeBeforeDetach = 0.5f;
+
+    void Update()
+    {
+        for (int i = 0; i < detached.Count; ++i)
+        {
+            detached[i].leftFor -= Time.deltaTime;
+
+            if (detached[i].leftFor <= 0f)
+                detached.RemoveAt(i--);
+        }
+    }
 
     void OnTriggerEnter2D(Collider2D _coll)
     {
-        Debug.Log("Hit by: " + _coll.name);
         if (_coll.tag == "Hand")
             Attach(_coll.transform.parent.GetComponent<Huevo>());
     }
@@ -37,6 +52,8 @@ public class Attachable : MonoBehaviour
         AttachableHuevo ah = IsHuevoAttached(_h);
         if(ah != null)
         {
+            ah.leftFor = timeBeforeDetach;
+            detached.Add(ah);
             attached.Remove(ah);
             ah.huevo.DetachFromObject();
         }
@@ -47,6 +64,9 @@ public class Attachable : MonoBehaviour
         for (int i = 0; i < attached.Count; ++i)
             if (attached[i].huevo == _h)
                 return attached[i];
+        for (int i = 0; i < detached.Count; ++i)
+            if (detached[i].huevo == _h)
+                return detached[i];
         return null;
     }
 }
