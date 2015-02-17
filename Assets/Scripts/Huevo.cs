@@ -316,7 +316,25 @@ public class Huevo : MonoBehaviour
         if (IsBlockedByDash())
             return;
 
-        velocity += effectiveGravity * vDeltaTime;
+        if(!bLongJumping)
+            velocity += effectiveGravity * vDeltaTime;
+        else // Otherwise, if we are long jumping
+        {
+            // Check if jump is being held
+            float pct = (heldJumpFor / maxLongJumpTime);
+
+            if (inHandler.Jump.bHeld && !ShouldWallGrind())
+                velocity.y += effectiveGravity.y * pct * vDeltaTime; // And long jump if it is
+            else
+                bLongJumping = false;       // otherwise, stop long jumping
+
+            heldJumpFor += Time.deltaTime;
+            if (heldJumpFor > maxLongJumpTime)
+                bLongJumping = false;
+
+            if (!bLongJumping)
+                heldJumpFor = 0;
+        }
 
         // Check for horizontal input, and apply acceleration if necessary
         if (inHandler.Horizontal != 0f && wallKickInputBlock == 0 && !stateMan.bIsCrouching)
@@ -536,21 +554,6 @@ public class Huevo : MonoBehaviour
                 else
                     ++extraJumps;
             }
-        }
-        else if (bLongJumping) // Otherwise, if we are long jumping
-        {
-            // Check if jump is being held
-            if (inHandler.Jump.bHeld && !ShouldWallGrind())
-                velocity.y += longJumpForce; // And long jump if it is
-            else
-                bLongJumping = false;       // otherwise, stop long jumping
-
-            heldJumpFor += Time.deltaTime;
-            if (heldJumpFor > maxLongJumpTime)
-                bLongJumping = false;
-
-            if (!bLongJumping)
-                heldJumpFor = 0;
         }
     }
 
