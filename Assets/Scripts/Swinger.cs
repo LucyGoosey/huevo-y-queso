@@ -41,28 +41,38 @@ public class Swinger : Attachable
         Vector3 relPos = (huevo.transform.position + huevo.HandPos) - transform.position;
         float rad = Mathf.Atan2(relPos.y, relPos.x);
 
-        _sh.angVel += gravity * Mathf.Cos(rad) * Time.deltaTime;
+        float l = length;
+
+        if (_sh.timeOnVine < timeToSlide)
+        {
+            l = _sh.posOnVine + (length - _sh.posOnVine) * (_sh.timeOnVine / timeToSlide);
+
+            _sh.timeOnVine += Time.deltaTime;
+        }
+
+        _sh.angVel += (gravity / l) * Mathf.Cos(rad) * Time.deltaTime;
 
         if (huevo.InHandler.Horizontal != 0f)//&& rad < -(Mathf.PI / 4f) && rad > -(Mathf.PI - (Mathf.PI / 4f)))
         {
-            _sh.angVel -= swingForce * huevo.InHandler.Horizontal * Mathf.Sin(rad) * Time.deltaTime;
+            float sForce = swingForce / l;
+            _sh.angVel -= sForce * huevo.InHandler.Horizontal * Mathf.Sin(rad) * Time.deltaTime;
             float dir = huevo.InHandler.Horizontal;
             if (rad < 0f)
             {
                 if (dir > 0 && rad < -(Mathf.PI / 2f))
-                    _sh.angVel -= swingForce * Mathf.Cos(rad) * Time.deltaTime;
+                    _sh.angVel -= sForce * Mathf.Cos(rad) * Time.deltaTime;
                 else if (dir > 0 && rad > -(Mathf.PI /2f))
-                    _sh.angVel += swingForce * Mathf.Cos(rad) * Time.deltaTime;
+                    _sh.angVel += sForce * Mathf.Cos(rad) * Time.deltaTime;
                 else if (dir < 0 && rad > -(Mathf.PI / 2f))
-                    _sh.angVel -= swingForce * Mathf.Cos(rad) * Time.deltaTime;
+                    _sh.angVel -= sForce * Mathf.Cos(rad) * Time.deltaTime;
                 else if(dir < 0 && rad < -(Mathf.PI / 2f))
-                    _sh.angVel += swingForce * Mathf.Cos(rad) * Time.deltaTime;
+                    _sh.angVel += sForce * Mathf.Cos(rad) * Time.deltaTime;
             }
         }
-
+        
         AddDrag(ref _sh.angVel, maxSpeed, minSpeed, dragMagic, dragCof);
 
-        rad += _sh.angVel * Time.deltaTime;
+        rad += (_sh.angVel * Time.deltaTime);
 
         Vector2 delta = Vector2.zero;
 
@@ -71,7 +81,7 @@ public class Swinger : Attachable
 
         huevo.transform.position += (Vector3)delta;
 
-        huevo.transform.position = transform.position + (((huevo.transform.position + huevo.HandPos) - transform.position).normalized * length);
+        huevo.transform.position = transform.position + (((huevo.transform.position + huevo.HandPos) - transform.position).normalized * l);    
         huevo.transform.position -= huevo.HandPos;
 
         if (huevo.InHandler.Jump.bDown || huevo.InHandler.Jump.bHeld)
@@ -97,7 +107,7 @@ public class Swinger : Attachable
         SwingingHuevo sh = new SwingingHuevo(_h);
         if (IsHuevoAttached(_h) == null)
         {
-            sh.posOnVine = Vector2.Distance(transform.position, sh.huevo.transform.position);
+            sh.posOnVine = Vector2.Distance(transform.position, sh.huevo.transform.position + sh.huevo.HandPos);
             attached.Add(sh);
             sh.huevo.AttachToObject(this);
         }

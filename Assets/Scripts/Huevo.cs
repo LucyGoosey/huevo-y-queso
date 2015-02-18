@@ -493,12 +493,12 @@ public class Huevo : MonoBehaviour
 
         GetHorizontalInput();
 
-        if (stateMan.bOnGround && inHandler.Horizontal == 0f)
-            AddDrag(ref velocity.x, maxSpeed.x, minSpeed.x, groundDragMagic, groundDragCof);
+        if (stateMan.bOnGround && ((!stateMan.bIsCrouching && inHandler.Horizontal == 0f) || stateMan.bIsCrouching))
+            AddDrag(ref velocity.x, minSpeed.x, groundDragMagic, groundDragCof);
         else if (!stateMan.bNearWall)
         {
-            AddDrag(ref velocity.x, maxSpeed.x, minSpeed.x, airDragMagic, airDragCof);
-            AddDrag(ref velocity.y, maxSpeed.y, minSpeed.y, airDragMagic, airDragCof);
+            AddDrag(ref velocity.x, minSpeed.x, airDragMagic, airDragCof);
+            AddDrag(ref velocity.y,  minSpeed.y, airDragMagic, airDragCof);
         }
 
         // Limit the velocity to the max speed
@@ -560,7 +560,7 @@ public class Huevo : MonoBehaviour
             return false;
     }
 
-    private void AddDrag(ref float _out, float _maxSpeed, float _minSpeed, float _dragMagic, float _dragCof = 1f)
+    private void AddDrag(ref float _out, float _minSpeed, float _dragMagic, float _dragCof = 1f)
     {
         float vX = _out;
         // Magic be here
