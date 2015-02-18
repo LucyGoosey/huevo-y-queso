@@ -2,7 +2,7 @@
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
-using System.Collections;
+using System.Collections.Generic;
 
 #if UNITY_EDITOR
 [ExecuteInEditMode]
@@ -24,19 +24,25 @@ public class Huevo : MonoBehaviour
     #region Private variables
     private Animator animator;
     private Transform pawn;
+    public Transform Pawn { get { return pawn; } }
     
     private Rect worldHitBox;
+    private Transform handPos;
+    public Vector3 HandPos { get { return handPos.localPosition; } }
 
     private InputHandler inHandler;
+    public InputHandler InHandler { get { return inHandler; } }
     private StateManager stateMan = new StateManager();
 
     private float   groundDistanceCheck = 0.1f;
     private Vector2 linecastCount = new Vector2(5, 5);
 
     private Vector2 velocity = Vector2.zero;
+    public Vector2 Velocity { get { return velocity; } }
     private float   vDeltaTime = 0;
 
     private Vector2 effectiveGravity = new Vector2(0f, -24f);
+    public Vector2 EffectiveGravity { get { return effectiveGravity; } }
 
     private bool    bLeftGround = false;
     private int     leftGroundForFrames = 0;
@@ -62,6 +68,11 @@ public class Huevo : MonoBehaviour
 
     private DeathBubble dBubble;
     private float   sqrDeadMaxSpeed;
+
+    public Attachable attachedTo;
+
+    private bool bIsBeingSquishedHor = false;
+    private bool bIsBeingSquishedVert = false;
     #endregion
 
     #region Public Variables
@@ -73,6 +84,7 @@ public class Huevo : MonoBehaviour
 
     public Vector2 gravity = new Vector2(0f, -24f);
     public Vector2 maxSpeed = new Vector2(15f, 35f);
+    public Vector2 minSpeed = new Vector2(0.05f, 0.01f);
 
     public float accel = 40f;
     public float airAccelMod = 0.5f;
@@ -117,6 +129,8 @@ public class Huevo : MonoBehaviour
         animator = GetComponent<Animator>();
         pawn = transform.FindChild("Pawn");
 
+        handPos = transform.FindChild("Hand");
+
         inHandler = GetComponent<InputHandler>();
         inHandler.SetPlayerNum(playerNum);
 
@@ -132,6 +146,11 @@ public class Huevo : MonoBehaviour
         stateMan.bIsAlive = true;
     }
 
+    public void AddForce(Vector2 _force)
+    {
+        velocity += _force;
+    }
+
     public void OnKill()
     {
         if (!stateMan.bIsAlive)
@@ -143,6 +162,7 @@ public class Huevo : MonoBehaviour
         collider2D.enabled = false;
         dBubble.gameObject.SetActive(true);
         inHandler.InputEnabled = true;
+        bIsBeingSquishedHor = bIsBeingSquishedVert = false;
     }
 
     public void OnBubblePop()
@@ -157,6 +177,23 @@ public class Huevo : MonoBehaviour
         effectiveGravity = gravity;
     }
 
+    public void AttachToObject(Attachable _object)
+    {
+        transform.parent = _object.transform;
+        attachedTo = _object;
+        velocity = Vector2.zero;
+        inHandler.InputEnabled = true;
+    }
+
+    public void DetachFromObject()
+    {
+        if (attachedTo != null)
+        {
+            transform.parent = null;
+            attachedTo = null;
+        }
+    }
+
     #region FixedUpdate
     void FixedUpdate()
     {
@@ -167,8 +204,13 @@ public class Huevo : MonoBehaviour
     }
 
     void FixedUpdateAlive()
-    {
-        PhysicsCheck();
+    {            
+        CollisionCheck();
+
+        if (attachedTo != null)
+        {
+            return;
+        }
 
         rigidbody2D.MovePosition(transform.position + (Vector3)(velocity * vDeltaTime));
         worldHitBox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
@@ -176,227 +218,158 @@ public class Huevo : MonoBehaviour
         CalculateVelocity();
     }
 
-    #region Physics Check
-    private void PhysicsCheck()
+    #region Collision Check
+    private void CollisionCheck()
     {
-        // Check for collision with the ground
-        RaycastHit2D hit = GroundCheck(0, -1);
-        HandleGroundHit(hit);
+        Rect testHitbox = worldHitBox;
+        testHitbox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
 
-        // Check for collision with the ceiling
-        hit = GroundCheck(0, 1);
-        HandleCeilingHit(hit);
+        RaycastHit2D[] hits = new RaycastHit2D[4];
+        for (int i = 0; i < 4; ++i)
+            hits[i] = new RaycastHit2D();
+        
+        hits[0] = GroundCheck(0, -1);
+        hits[1] = GroundCheck(0, 1);
+
+        hits[2] = GroundCheck(1, 0);
+        hits[3] = GroundCheck(-1, 0);
+
+        if(hits[0].collider == null)
+            if (stateMan.bOnGround && !bLeftGround)
+            {
+                bLeftGround = true;
+                leftGroundForFrames = 0;
+            }
+
+        RaycastHit2D hor, ver;
+        hor = new RaycastHit2D();
+        ver = new RaycastHit2D();
+
+        if (hits[0].collider != null)
+            ver = hits[0];
+        else if (hits[1].collider != null)
+            ver = hits[1];
+
+        if (hits[2].collider != null)
+            hor = hits[2];
+        else if (hits[3].collider != null)
+            hor = hits[3];
+
+        if (hor.collider != null && ver.collider != null && hor.collider == ver.collider)
+        {
+            float xD = Mathf.Min(Mathf.Abs(testHitbox.center.x - hor.collider.bounds.max.x), Mathf.Abs(testHitbox.center.x - hor.collider.bounds.min.x));
+            float yD = Mathf.Min(Mathf.Abs(testHitbox.center.y - ver.collider.bounds.max.y), Mathf.Abs(testHitbox.center.y - ver.collider.bounds.min.y));
+
+            if (xD < yD)
+            {
+                ver = new RaycastHit2D();
+            }
+            else
+            {
+                hor = new RaycastHit2D();
+            }
+        }
+
+        if (ver.collider != null)
+        {
+            float upDist, downDist;
+            upDist = downDist = float.MaxValue;
+
+            upDist = Mathf.Abs(testHitbox.center.y - ver.collider.bounds.min.y);
+            downDist = Mathf.Abs(testHitbox.center.y - ver.collider.bounds.max.y);
+
+            float dir = upDist < downDist ? 1f : -1f;
+
+            if (dir == -1f && !stateMan.bOnGround && velocity.y < 0f)
+                Grounded(ver.collider.transform);
+
+            if (Mathf.Sign(velocity.y) == dir)
+                velocity.y = 0f;
+
+            float newY = dir > 0f ? ver.collider.bounds.min.y - hitboxWidthHeight.y : ver.collider.bounds.max.y;
+            transform.position = new Vector3(transform.position.x, newY);
+
+            if (hits[0].collider != null && hits[1].collider != null)
+            {
+                if (bIsBeingSquishedVert)
+                    OnKill();
+                else
+                    bIsBeingSquishedVert = true;
+            }else
+                bIsBeingSquishedVert = false;
+        }
 
         // We're not near a wall unless we are near a wall!
         stateMan.bNearWall = false;
 
-        // Check for collision with the wall to the relative right of Huevo
-        hit = GroundCheck(1, 0);
-        HandleWallHit(hit);
+        if (hor.collider != null)
+        {
+            float leftDist, rightDist;
+            leftDist = rightDist = float.MaxValue;
 
-        // Check for collision with the wall to the relative left
-        hit = GroundCheck(-1, 0);        
-        HandleOtherwallHit(hit);
+            leftDist = Mathf.Abs(testHitbox.center.x - hor.collider.bounds.max.x);
+            rightDist = Mathf.Abs(testHitbox.center.x - hor.collider.bounds.min.x);
+
+            float dir = leftDist < rightDist ? -1f : 1f;
+
+            if (Mathf.Sign(velocity.x) == dir)
+                velocity.x = 0f;
+
+            float halfWidth = hitboxWidthHeight.x / 2f;
+            float newX = dir > 0f ? hor.collider.bounds.min.x - halfWidth : hor.collider.bounds.max.x + halfWidth;
+            transform.position = new Vector3(newX, transform.position.y);
+
+            CheckNearWall(hor, dir);
+
+            if (hits[2].collider != null && hits[3].collider != null)
+            {
+                if (bIsBeingSquishedHor)
+                    OnKill();
+                else
+                    bIsBeingSquishedHor = true;
+            }
+            else
+                bIsBeingSquishedHor = false;
+        }
 
         // If we're not on the ground or near a wall, we shouldn't "stick" to anything
         if(!stateMan.bOnGround && !stateMan.bNearWall)
             transform.parent = null;
     }
 
-    private void HandleGroundHit(RaycastHit2D _ground)
+    private RaycastHit2D IterateGroundCheck(float vel, float dist, Vector2 groundcheckDir)
     {
-        Collider2D ground = _ground.collider;
-        if (ground != null)
+        // Usage from PhysicsCheck()
+        /*if (velocity != Vector2.zero)
         {
-            if(velocity.y < 0f)
-                velocity.y = 0f;
-            transform.position = new Vector3(transform.position.x, ground.bounds.max.y);
+            float mag = velocity.magnitude;
 
-            stateMan.bOnGround = true;
-            Grounded();
+            float dist = testHitbox.height / (linecastCount.y + 1);
+            hits[0] = IterateGroundCheck(mag, dist, new Vector2(0, -1)); // Check for collision with the ground
+            hits[1] = IterateGroundCheck(mag, dist, new Vector2(0, 1));  // Check for collision with the ceiling
 
-            if (transform.parent != ground.transform)
-                transform.parent = ground.transform;
-        }
-        else if (stateMan.bOnGround && !bLeftGround)
+            dist = testHitbox.width / (linecastCount.x + 1);
+            hits[2] = IterateGroundCheck(mag, dist, new Vector2(1, 0));  // Check for collision with the r-wall 
+            hits[3] = IterateGroundCheck(mag, dist, new Vector2(-1, 0)); // Check for collision with the l-wall 
+        }*/
+        vel = Mathf.Abs(vel);
+        if (vel > dist)
         {
-            bLeftGround = true;
-            leftGroundForFrames = 0;
-        }
-    }
+            float iterations = Mathf.Ceil(vel / dist) / 2;
+            float pct = (dist / vel) * 2;
 
-    private void HandleCeilingHit(RaycastHit2D _ceiling)
-    {
-        Collider2D ceiling = _ceiling.collider;
-        if (ceiling != null)
-        {
-            if(velocity.y > 0f)
-                velocity.y = 0f;
-
-            transform.position = new Vector3(transform.position.x, ceiling.bounds.min.y - hitboxWidthHeight.y);
-        }
-    }
-
-    private void HandleWallHit(RaycastHit2D _wall)
-    {
-        Collider2D coll = _wall.collider;
-        if (coll != null)
-        {
-            if(velocity.x > 0f)
-                velocity.x = 0f;
-
-            transform.position = new Vector3(coll.bounds.min.x - (hitboxWidthHeight.x / 2), transform.position.y);
-
-            if (_wall.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
+            for (int i = 0; i < iterations; ++i)
             {
-                stateMan.bNearWall = true;
-                wallSide = 1;
-
-                if (!stateMan.bOnGround)
-                {
-                    bBlockJump = false;
-
-                    if (transform.parent != coll.transform)
-                        transform.parent = coll.transform;
-                }
+                RaycastHit2D hit = GroundCheck((int)groundcheckDir.x, (int)groundcheckDir.y, pct * i);
+                if (hit.collider != null)
+                    return hit;
             }
         }
+
+        return new RaycastHit2D();
     }
 
-    private void HandleOtherwallHit(RaycastHit2D _otherwall)
-    {
-        Collider2D coll = _otherwall.collider;
-        if (coll != null)
-        {
-            if (velocity.x < 0f)
-                velocity.x = 0f;
-
-            transform.position = new Vector3(coll.bounds.max.x + (hitboxWidthHeight.x / 2), transform.position.y);
-
-            if (!stateMan.bNearWall && _otherwall.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
-            {
-                stateMan.bNearWall = true;
-                wallSide = -1;
-
-                if (!stateMan.bOnGround)
-                {
-                    bBlockJump = false;
-
-                    if (transform.parent != coll.transform)
-                        transform.parent = coll.transform;
-                }
-            }
-        }
-    }
-
-    private void Grounded()
-    {
-        bLeftGround = false;
-        bBlockJump = false;
-
-        extraJumps = 0;
-
-        wallKickInputBlock = 0;
-        timeOnWall = 0;
-
-        dashCombo = 0;
-
-        if (bIsSlamming)
-        {
-            bIsSlamming = false;
-            inHandler.InputEnabled = true;
-        }
-    }
-    #endregion
-
-    private void CalculateVelocity()
-    {
-        vDeltaTime = Time.deltaTime;
-
-        if (IsBlockedByDash())
-            return;
-
-        if(!bLongJumping)
-            velocity += effectiveGravity * vDeltaTime;
-        else // Otherwise, if we are long jumping
-        {
-            // Check if jump is being held
-            float pct = (heldJumpFor / maxLongJumpTime);
-
-            if (inHandler.Jump.bHeld && !ShouldWallGrind())
-                velocity.y += effectiveGravity.y * pct * vDeltaTime; // And long jump if it is
-            else
-                bLongJumping = false;       // otherwise, stop long jumping
-
-            heldJumpFor += Time.deltaTime;
-            if (heldJumpFor > maxLongJumpTime)
-                bLongJumping = false;
-
-            if (!bLongJumping)
-                heldJumpFor = 0;
-        }
-
-        // Check for horizontal input, and apply acceleration if necessary
-        if (inHandler.Horizontal != 0f && wallKickInputBlock == 0 && !stateMan.bIsCrouching)
-        {
-            float velAdd = accel * inHandler.Horizontal * vDeltaTime;
-
-            if (!stateMan.bOnGround)
-                velAdd *= airAccelMod;
-
-            velAdd *= (stateMan.bOnGround ? groundDragCof : airDragCof);
-
-            if (Mathf.Sign(velocity.x) != inHandler.Horizontal)
-                velAdd *= reverseAccelMod;
-
-            velocity.x += velAdd;
-        }
-        else if (stateMan.bOnGround)
-            AddDrag(ref velocity.x, maxSpeed.x, groundDragMagic, groundDragCof);
-        else if (!stateMan.bNearWall)
-            AddDrag(ref velocity.x, maxSpeed.x, airDragMagic, airDragCof);
-
-        // Limit the velocity to the max speed
-        if (Mathf.Abs(velocity.x) > maxSpeed.x)
-            velocity.x = maxSpeed.x * Mathf.Sign(velocity.x);
-        if (ShouldWallGrind())
-        {
-            if (Mathf.Abs(velocity.y) > maxSpeed.y * wallGrindMod)
-                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y) * wallGrindMod;
-        }else
-            if (Mathf.Abs(velocity.y) > maxSpeed.y)
-                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y);
-    }
-
-    private bool ShouldWallGrind()
-    {
-        return !stateMan.bOnGround && stateMan.bNearWall && !stateMan.bHangingToWall 
-                && (pawn.transform.localScale.x == wallSide) && !bIsSlamming;
-    }
-
-    private bool IsBlockedByDash()
-    {
-        if (stateMan.bIsDashing)
-        {
-            if (timeInDash < dashPauseTime)
-                velocity = Vector2.zero;
-            else if (timeInDash - dashPauseTime < dashMotionTime)
-            {
-                if (GroundCheck((int)dashDir, 0, 2).collider != null)
-                    timeInDash = maxDashTime;
-
-                velocity = new Vector2(dashVelocity, 0f) * dashDir;
-            }
-            else
-                return false;
-
-            return true;
-        }
-        else
-            return false;
-    }
-
-    private RaycastHit2D GroundCheck(int _xDir, int _yDir, int framesToAdvance = 1)
+    private RaycastHit2D GroundCheck(int _xDir, int _yDir, float framesToAdvance = 1f)
     {
         RaycastHit2D groundHit = new RaycastHit2D();
 
@@ -451,21 +424,159 @@ public class Huevo : MonoBehaviour
         return groundHit;
     }
 
-    private void AddDrag(ref float _out, float _maxSpeed, float _dragMagic, float _dragCof = 1f)
+    private void CheckNearWall(RaycastHit2D _wall, float _dir)
     {
-        if (Mathf.Abs(_out) > _maxSpeed * 0.05f)
+        if (_wall.point.y < worldHitBox.yMin + (hitboxWidthHeight.y * wallHitBoxHeightPct))
         {
-            float vX = _out;
-            // Magic be here
-            vX -= vX * (_dragMagic * Mathf.Pow(_dragCof, 2));
+            stateMan.bNearWall = true;
+            wallSide = (int)_dir;
 
-            if (Mathf.Sign(vX) != Mathf.Sign(_out))
-                _out = 0f;
+            if (!stateMan.bOnGround)
+            {
+                bBlockJump = false;
+
+                if (transform.parent != _wall.collider.transform)
+                    transform.parent = _wall.collider.transform;
+            }
+        }
+    }
+
+    private void Grounded(Transform _ground)
+    {
+        if (transform.parent != _ground)
+            transform.parent = _ground;
+
+        stateMan.bOnGround = true;
+        bLeftGround = false;
+        bBlockJump = false;
+
+        extraJumps = 0;
+
+        wallKickInputBlock = 0;
+        timeOnWall = 0;
+
+        dashCombo = 0;
+
+        if (bIsSlamming)
+        {
+            bIsSlamming = false;
+            inHandler.InputEnabled = true;
+        }
+    }
+    #endregion
+
+    private void CalculateVelocity()
+    {
+        vDeltaTime = Time.deltaTime;
+
+        if (IsBlockedByDash())
+            return;
+
+        if(!bLongJumping)
+            velocity += effectiveGravity * vDeltaTime;
+        else // Otherwise, if we are long jumping
+        {
+            // Check if jump is being held
+            float pct = (heldJumpFor / maxLongJumpTime);
+
+            if ((inHandler.Jump.bDown || inHandler.Jump.bHeld) && !ShouldWallGrind())
+                velocity.y += effectiveGravity.y * pct * vDeltaTime; // And long jump if it is
             else
-                _out = vX;
+                bLongJumping = false;       // otherwise, stop long jumping
+
+            heldJumpFor += Time.deltaTime;
+            if (heldJumpFor > maxLongJumpTime)
+                bLongJumping = false;
+
+            if (!bLongJumping)
+                heldJumpFor = 0;
+        }
+
+        GetHorizontalInput();
+
+        if (stateMan.bIsCrouching || (stateMan.bOnGround && inHandler.Horizontal == 0f))
+        {
+            AddDrag(ref velocity.x, minSpeed.x, groundDragMagic, groundDragCof);
+        }
+        else if (!stateMan.bNearWall)
+        {
+            if(inHandler.Horizontal == 0f)
+                AddDrag(ref velocity.x, minSpeed.x, airDragMagic, airDragCof);
+
+            if(!bIsSlamming)
+                AddDrag(ref velocity.y, minSpeed.y, airDragMagic, airDragCof);
+        }
+
+        // Limit the velocity to the max speed
+        if (Mathf.Abs(velocity.x) > maxSpeed.x)
+            velocity.x = maxSpeed.x * Mathf.Sign(velocity.x);
+        if (ShouldWallGrind())
+        {
+            if (Mathf.Abs(velocity.y) > maxSpeed.y * wallGrindMod)
+                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y) * wallGrindMod;
+        }else
+            if (Mathf.Abs(velocity.y) > maxSpeed.y)
+                velocity.y = maxSpeed.y * Mathf.Sign(velocity.y);
+    }
+
+    private void GetHorizontalInput()
+    {
+        // Check for horizontal input, and apply acceleration if necessary
+        if (inHandler.Horizontal != 0f && wallKickInputBlock == 0 && !stateMan.bIsCrouching)
+        {
+            float velAdd = accel * inHandler.Horizontal * vDeltaTime;
+
+            if (!stateMan.bOnGround)
+                velAdd *= airAccelMod;
+
+            velAdd *= (stateMan.bOnGround ? groundDragCof : airDragCof);
+
+            if (velocity.x != 0 && Mathf.Sign(velocity.x) != inHandler.Horizontal)
+                velAdd *= reverseAccelMod;
+
+            velocity.x += velAdd;
+        }
+    }
+
+    private bool ShouldWallGrind()
+    {
+        return !stateMan.bOnGround && stateMan.bNearWall && !stateMan.bHangingToWall 
+                && (pawn.transform.localScale.x == wallSide) && !bIsSlamming;
+    }
+
+    private bool IsBlockedByDash()
+    {
+        if (stateMan.bIsDashing)
+        {
+            if (timeInDash < dashPauseTime)
+                velocity = Vector2.zero;
+            else if (timeInDash - dashPauseTime < dashMotionTime)
+            {
+                if (GroundCheck((int)dashDir, 0, 2).collider != null)
+                    timeInDash = maxDashTime;
+
+                velocity = new Vector2(dashVelocity, 0f) * dashDir;
+            }
+            else
+                return false;
+
+            return true;
         }
         else
+            return false;
+    }
+
+    private void AddDrag(ref float _out, float _minSpeed, float _dragMagic, float _dragCof = 1f)
+    {
+        float vX = _out;
+
+        // Magic be here
+        vX -= vX * (_dragMagic * Mathf.Pow(_dragCof, 2));
+
+        if (Mathf.Sign(vX) != Mathf.Sign(_out) || Mathf.Abs(vX) <= _minSpeed)
             _out = 0f;
+        else
+            _out = vX;
     }
 
     private void FixedUpdateDead()
@@ -477,9 +588,9 @@ public class Huevo : MonoBehaviour
             velocity = velocity.normalized * deadMaxSpeed;
 
         if(inHandler.Horizontal == 0)
-            AddDrag(ref velocity.x, deadMaxSpeed, deadDragMagic);
+            AddDrag(ref velocity.x, deadMaxSpeed, 0f, deadDragMagic);
         if(inHandler.Vertical == 0)
-            AddDrag(ref velocity.y, deadMaxSpeed, deadDragMagic);
+            AddDrag(ref velocity.y, deadMaxSpeed, 0f, deadDragMagic);
 
         rigidbody2D.MovePosition(transform.position + (Vector3)(velocity * Time.deltaTime));
     }
@@ -501,6 +612,12 @@ public class Huevo : MonoBehaviour
         if(inHandler.Bubble.bDown)
         {
             OnKill();
+            return;
+        }
+
+        if (attachedTo != null)
+        {
+
             return;
         }
 
@@ -548,6 +665,8 @@ public class Huevo : MonoBehaviour
 
                 if (stateMan.bOnGround)
                 {
+                    bLeftGround = true;
+                    leftGroundForFrames = int.MaxValue;
                     stateMan.bOnGround = false;
                     bLongJumping = true;
                 }
@@ -703,7 +822,7 @@ public class Huevo : MonoBehaviour
     {
         if (bLeftGround && stateMan.bOnGround)
         {
-            if (leftGroundForFrames > framesBeforeLeaveGround)
+            if (leftGroundForFrames >= framesBeforeLeaveGround)
                 stateMan.bOnGround = false;
 
             ++leftGroundForFrames;
