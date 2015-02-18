@@ -42,6 +42,7 @@ public class Huevo : MonoBehaviour
     private float   vDeltaTime = 0;
 
     private Vector2 effectiveGravity = new Vector2(0f, -24f);
+    public Vector2 EffectiveGravity { get { return effectiveGravity; } }
 
     private bool    bLeftGround = false;
     private int     leftGroundForFrames = 0;

@@ -21,7 +21,6 @@ public class Swinger : Attachable
     public Vector2 jumpForce = new Vector2(12f, 12f);
 
     public float swingForce = 30f;
-    public float gravity = -30f;
 
     public float maxSpeed = 5f;
     private float minSpeed = 0f;
@@ -65,7 +64,8 @@ public class Swinger : Attachable
             _sh.timeOnVine += Time.deltaTime;
         }
 
-        _sh.angVel += (gravity / l) * Mathf.Cos(rad) * Time.deltaTime;
+        _sh.angVel += (huevo.EffectiveGravity.y / l) * Mathf.Cos(rad) * Time.deltaTime;
+        _sh.angVel += (huevo.EffectiveGravity.x / l) * Mathf.Sin(rad) * Time.deltaTime;
 
         if (huevo.InHandler.Horizontal != 0f)
         {
