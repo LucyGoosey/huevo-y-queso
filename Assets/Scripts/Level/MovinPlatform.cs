@@ -20,6 +20,7 @@ public class MovinPlatform : MonoBehaviour {
         if (bShouldMove)
         {
             transform.position = Vector2.Lerp(startpos, target.position, t);
+
             t += speed;
             if (t >= 1 || t <= 0)
             {
