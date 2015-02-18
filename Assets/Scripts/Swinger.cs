@@ -18,11 +18,10 @@ public class Swinger : Attachable
 
     public float length = 3f;
 
-    public bool ShouldApplyVelocity = true;
-    public Vector2 jumpForce = new Vector2(0f, 10f);
+    public Vector2 jumpForce = new Vector2(12f, 12f);
 
-    public float swingForce = 10f;
-    public float gravity = -24f;
+    public float swingForce = 30f;
+    public float gravity = -30f;
 
     public float maxSpeed = 5f;
     private float minSpeed = 0f;
@@ -32,10 +31,12 @@ public class Swinger : Attachable
     public float timeToSlide = 0.5f;
 
     private LineRenderer lineRenderer;
+    private BoxCollider2D boxCollider;
 
     void Start()
     {
         lineRenderer = GetComponent<LineRenderer>();
+        boxCollider = GetComponent<BoxCollider2D>();
     }
 
     void FixedUpdate()
@@ -145,13 +146,18 @@ public class Swinger : Attachable
     }
 
 #if UNITY_EDITOR
-    void Update()
+    new protected void Update()
     {
         if (!Application.isPlaying)
         {
             lineRenderer.SetPosition(0, transform.position);
             lineRenderer.SetPosition(1, transform.position - (Vector3)(Vector2.up * length));
+
+            boxCollider.center = new Vector2(0f, -(length / 2f));
+            boxCollider.size = new Vector2(0.25f, length);
         }
+        else
+            base.Update();
     }
 #endif
 }

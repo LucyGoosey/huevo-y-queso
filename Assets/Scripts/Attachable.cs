@@ -21,7 +21,7 @@ public class Attachable : MonoBehaviour
 
     public float timeBeforeDetach = 0.5f;
 
-    void Update()
+    protected void Update()
     {
         for (int i = 0; i < detached.Count; ++i)
         {
