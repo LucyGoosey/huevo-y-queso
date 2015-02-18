@@ -127,7 +127,7 @@ public class Swinger : Attachable
     override protected void Attach(Huevo _h)
     {
         SwingingHuevo sh = new SwingingHuevo(_h);
-        if (IsHuevoAttached(_h) == null)
+        if (IsHuevoAttached(sh.huevo) == null && sh.huevo.transform.position.y + sh.huevo.HandPos.y < collider2D.bounds.max.y)
         {
             sh.posOnVine = Vector2.Distance(transform.position, sh.huevo.transform.position + sh.huevo.HandPos);
             Vector2 relPos = transform.position - sh.huevo.transform.position;
