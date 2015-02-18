@@ -70,6 +70,12 @@ public class Swinger : Attachable
         if (huevo.InHandler.Horizontal != 0f)
         {
             float sForce = swingForce / l;
+
+            float pct = Mathf.Abs(rad);
+            pct = pct > Mathf.PI / 2f ? (Mathf.PI / 2f) - (pct - (Mathf.PI / 2f)) : pct;
+            pct /= Mathf.PI / 2f;
+            sForce *= pct;
+
             _sh.angVel -= sForce * huevo.InHandler.Horizontal * Mathf.Sin(rad) * Time.deltaTime;
 
             float dir = huevo.InHandler.Horizontal;
@@ -126,7 +132,7 @@ public class Swinger : Attachable
             sh.posOnVine = Vector2.Distance(transform.position, sh.huevo.transform.position + sh.huevo.HandPos);
             Vector2 relPos = transform.position - sh.huevo.transform.position;
             Vector2 relPosPrime = transform.position - (sh.huevo.transform.position + (Vector3)sh.huevo.Velocity);
-            sh.angVel = (Mathf.Atan2(relPos.y, relPosPrime.x) - Mathf.Atan2(relPos.y, relPos.x));
+            sh.angVel = (Mathf.Atan2(relPos.y, relPosPrime.x) - Mathf.Atan2(relPos.y, relPos.x)) * sh.posOnVine;
 
             attached.Add(sh);
             sh.huevo.AttachToObject(this);
