@@ -478,7 +478,7 @@ public class Huevo : MonoBehaviour
             // Check if jump is being held
             float pct = (heldJumpFor / maxLongJumpTime);
 
-            if (inHandler.Jump.bHeld && !ShouldWallGrind())
+            if ((inHandler.Jump.bDown || inHandler.Jump.bHeld) && !ShouldWallGrind())
                 velocity.y += effectiveGravity.y * pct * vDeltaTime; // And long jump if it is
             else
                 bLongJumping = false;       // otherwise, stop long jumping
