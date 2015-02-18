@@ -1,6 +1,10 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
+[RequireComponent(typeof(LineRenderer))]
+#if UNITY_DEBUG
+[ExecuteInEditMode]
+#endif
 public class Swinger : Attachable
 {
     public class SwingingHuevo : AttachableHuevo
@@ -27,8 +31,18 @@ public class Swinger : Attachable
 
     public float timeToSlide = 0.5f;
 
+    private LineRenderer lineRenderer;
+
+    void Start()
+    {
+        lineRenderer = GetComponent<LineRenderer>();
+    }
+
     void FixedUpdate()
     {
+        lineRenderer.SetPosition(0, transform.position);
+        lineRenderer.SetPosition(1, transform.position - (Vector3)(Vector2.up * length));
+
         for (int i = 0; i < attached.Count; ++i)
             if (attached[i].huevo != null)
                 ProcessHuevo((SwingingHuevo)attached[i]);
@@ -85,6 +99,8 @@ public class Swinger : Attachable
 
         if (huevo.InHandler.Jump.bDown || huevo.InHandler.Jump.bHeld)
             Detach(huevo);
+
+        lineRenderer.SetPosition(1, huevo.transform.position + huevo.HandPos);
     }
 
     private void AddDrag(ref float _out, float _maxSpeed, float _minSpeed, float _dragMagic, float _dragCof = 1f)
@@ -127,4 +143,15 @@ public class Swinger : Attachable
             _h.AddForce(new Vector2(jumpForce.x * _h.Pawn.localScale.x, jumpForce.y));
         }
     }
+
+#if UNITY_EDITOR
+    void Update()
+    {
+        if (!Application.isPlaying)
+        {
+            lineRenderer.SetPosition(0, transform.position);
+            lineRenderer.SetPosition(1, transform.position - (Vector3)(Vector2.up * length));
+        }
+    }
+#endif
 }
