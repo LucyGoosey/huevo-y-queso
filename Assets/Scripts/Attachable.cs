@@ -9,11 +9,13 @@ public class Attachable : MonoBehaviour
         public Huevo huevo;
 
         public float leftFor = 0f;
+        public bool bHoldingJump = false;
 
-        public AttachableHuevo(Huevo _h)
-        {
-            huevo = _h;
-        }
+        public float[] floatParams = null;
+
+        public AttachableHuevo(Huevo _h) { huevo = _h; }
+
+        public void SetNumFloatParams(uint _numParams) { floatParams = new float[_numParams]; }
     }
 
     public List<AttachableHuevo> attached = new List<AttachableHuevo>();
@@ -32,25 +34,47 @@ public class Attachable : MonoBehaviour
         }
     }
 
+    protected void FixedUpdate()
+    {
+        for (int i = 0; i < attached.Count; ++i)
+            if (attached[i].bHoldingJump && !attached[i].huevo.InHandler.Jump.bHeld)
+                attached[i].bHoldingJump = false;
+    }
+
     void OnTriggerEnter2D(Collider2D _coll)
     {
         if (_coll.tag == "Hand")
             Attach(_coll.transform.parent.GetComponent<Huevo>());
     }
 
-    virtual protected void Attach(Huevo _h)
+    void OnTriggerStay2D(Collider2D _coll)
     {
+        if(_coll.tag == "Hand")
+            Attach(_coll.transform.parent.GetComponent<Huevo>());
+    }
+
+    virtual protected AttachableHuevo Attach(Huevo _h)
+    {
+        AttachableHuevo ah = null;
+
         if (IsHuevoAttached(_h) == null)
         {
-            attached.Add(new AttachableHuevo(_h));
-            _h.AttachToObject(this);
+            ah = new AttachableHuevo(_h);
+
+            if (ah.huevo.InHandler.Jump.bHeld)
+                ah.bHoldingJump = true;
+
+            attached.Add(ah);
+            ah.huevo.AttachToObject(this);
         }
+
+        return ah;
     }
 
     virtual protected void Detach(Huevo _h)
     {
         AttachableHuevo ah = IsHuevoAttached(_h);
-        if(ah != null)
+        if(ah != null && !ah.bHoldingJump)
         {
             ah.leftFor = timeBeforeDetach;
             detached.Add(ah);

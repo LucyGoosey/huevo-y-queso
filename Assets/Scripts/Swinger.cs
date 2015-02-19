@@ -7,15 +7,6 @@ using System.Collections.Generic;
 #endif
 public class Swinger : Attachable
 {
-    public class SwingingHuevo : AttachableHuevo
-    {
-        public float angVel = 0f;
-        public float posOnVine = 0f;
-        public float timeOnVine = 0f;
-
-        public SwingingHuevo(Huevo _h) : base(_h) {}
-    }
-
     public float length = 3f;
 
     public Vector2 jumpForce = new Vector2(12f, 12f);
@@ -38,17 +29,19 @@ public class Swinger : Attachable
         boxCollider = GetComponent<BoxCollider2D>();
     }
 
-    void FixedUpdate()
+    new protected void FixedUpdate()
     {
+        base.FixedUpdate();
+
         lineRenderer.SetPosition(0, transform.position);
         lineRenderer.SetPosition(1, transform.position - (Vector3)(Vector2.up * length));
 
         for (int i = 0; i < attached.Count; ++i)
             if (attached[i].huevo != null)
-                ProcessHuevo((SwingingHuevo)attached[i]);
+                ProcessHuevo(attached[i]);
     }
 
-    private void ProcessHuevo(SwingingHuevo _sh)
+    private void ProcessHuevo(AttachableHuevo _sh)
     {
         Huevo huevo = _sh.huevo;
 
@@ -57,15 +50,15 @@ public class Swinger : Attachable
 
         float l = length;
 
-        if (_sh.timeOnVine < timeToSlide)
+        if (_sh.floatParams[2] < timeToSlide)
         {
-            l = _sh.posOnVine + (length - _sh.posOnVine) * (_sh.timeOnVine / timeToSlide);
+            l = _sh.floatParams[1] + (length - _sh.floatParams[1]) * (_sh.floatParams[2] / timeToSlide);
 
-            _sh.timeOnVine += Time.deltaTime;
+            _sh.floatParams[2] += Time.deltaTime;
         }
 
-        _sh.angVel += (huevo.EffectiveGravity.y / l) * Mathf.Cos(rad) * Time.deltaTime;
-        _sh.angVel += (huevo.EffectiveGravity.x / l) * Mathf.Sin(rad) * Time.deltaTime;
+        _sh.floatParams[0] += (huevo.EffectiveGravity.y / l) * Mathf.Cos(rad) * Time.deltaTime;
+        _sh.floatParams[0] += (huevo.EffectiveGravity.x / l) * Mathf.Sin(rad) * Time.deltaTime;
 
         if (huevo.InHandler.Horizontal != 0f)
         {
@@ -76,23 +69,23 @@ public class Swinger : Attachable
             pct /= Mathf.PI / 2f;
             sForce *= pct;
 
-            _sh.angVel -= sForce * huevo.InHandler.Horizontal * Mathf.Sin(rad) * Time.deltaTime;
+            _sh.floatParams[0] -= sForce * huevo.InHandler.Horizontal * Mathf.Sin(rad) * Time.deltaTime;
 
             float dir = huevo.InHandler.Horizontal;
             if (rad < 0f)
                 if (dir > 0 && rad < -(Mathf.PI / 2f))
-                    _sh.angVel -= sForce * Mathf.Cos(rad) * Time.deltaTime;
+                    _sh.floatParams[0] -= sForce * Mathf.Cos(rad) * Time.deltaTime;
                 else if (dir > 0 && rad > -(Mathf.PI /2f))
-                    _sh.angVel += sForce * Mathf.Cos(rad) * Time.deltaTime;
+                    _sh.floatParams[0] += sForce * Mathf.Cos(rad) * Time.deltaTime;
                 else if (dir < 0 && rad > -(Mathf.PI / 2f))
-                    _sh.angVel -= sForce * Mathf.Cos(rad) * Time.deltaTime;
+                    _sh.floatParams[0] -= sForce * Mathf.Cos(rad) * Time.deltaTime;
                 else if(dir < 0 && rad < -(Mathf.PI / 2f))
-                    _sh.angVel += sForce * Mathf.Cos(rad) * Time.deltaTime;
+                    _sh.floatParams[0] += sForce * Mathf.Cos(rad) * Time.deltaTime;
         }
         
-        AddDrag(ref _sh.angVel, maxSpeed, minSpeed, dragMagic, dragCof);
+        AddDrag(ref _sh.floatParams[0], maxSpeed, minSpeed, dragMagic, dragCof);
 
-        rad += (_sh.angVel * Time.deltaTime);
+        rad += (_sh.floatParams[0] * Time.deltaTime);
 
         Vector2 delta = Vector2.zero;
 
@@ -124,25 +117,29 @@ public class Swinger : Attachable
             _out = vX;
     }
 
-    override protected void Attach(Huevo _h)
+    override protected AttachableHuevo Attach(Huevo _h)
     {
-        SwingingHuevo sh = new SwingingHuevo(_h);
-        if (IsHuevoAttached(sh.huevo) == null && sh.huevo.transform.position.y + sh.huevo.HandPos.y < collider2D.bounds.max.y)
-        {
-            sh.posOnVine = Vector2.Distance(transform.position, sh.huevo.transform.position + sh.huevo.HandPos);
-            Vector2 relPos = transform.position - sh.huevo.transform.position;
-            Vector2 relPosPrime = transform.position - (sh.huevo.transform.position + (Vector3)sh.huevo.Velocity);
-            sh.angVel = (Mathf.Atan2(relPos.y, relPosPrime.x) - Mathf.Atan2(relPos.y, relPos.x)) * sh.posOnVine;
+        if (_h.transform.position.y + _h.HandPos.y >= collider2D.bounds.max.y)
+            return null;
 
-            attached.Add(sh);
-            sh.huevo.AttachToObject(this);
+        AttachableHuevo ah = base.Attach(_h);
+
+        if (ah != null)
+        {
+            ah.SetNumFloatParams(3); // 0 = angVel, 1 = posOnVine, 2 = timeOnVine
+            ah.floatParams[1] = Vector2.Distance(transform.position, ah.huevo.transform.position + ah.huevo.HandPos);
+            Vector2 relPos = transform.position - ah.huevo.transform.position;
+            Vector2 relPosPrime = transform.position - (ah.huevo.transform.position + (Vector3)ah.huevo.Velocity);
+            ah.floatParams[0] = (Mathf.Atan2(relPos.y, relPosPrime.x) - Mathf.Atan2(relPos.y, relPos.x)) * length;
         }
+
+        return ah;
     }
 
     override protected void Detach(Huevo _h)
     {
-        SwingingHuevo sh = (SwingingHuevo)IsHuevoAttached(_h);
-        if (sh != null)
+        AttachableHuevo ah = IsHuevoAttached(_h);
+        if (ah != null && !ah.bHoldingJump)
         {
             base.Detach(_h);
 

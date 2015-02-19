@@ -208,9 +208,7 @@ public class Huevo : MonoBehaviour
         CollisionCheck();
 
         if (attachedTo != null)
-        {
             return;
-        }
 
         rigidbody2D.MovePosition(transform.position + (Vector3)(velocity * vDeltaTime));
         worldHitBox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
@@ -494,12 +492,17 @@ public class Huevo : MonoBehaviour
 
         GetHorizontalInput();
 
-        if (stateMan.bOnGround && ((!stateMan.bIsCrouching && inHandler.Horizontal == 0f) || stateMan.bIsCrouching))
+        if (stateMan.bIsCrouching || (stateMan.bOnGround && inHandler.Horizontal == 0f))
+        {
             AddDrag(ref velocity.x, minSpeed.x, groundDragMagic, groundDragCof);
+        }
         else if (!stateMan.bNearWall)
         {
-            AddDrag(ref velocity.x, minSpeed.x, airDragMagic, airDragCof);
-            AddDrag(ref velocity.y,  minSpeed.y, airDragMagic, airDragCof);
+            if(inHandler.Horizontal == 0f)
+                AddDrag(ref velocity.x, minSpeed.x, airDragMagic, airDragCof);
+
+            if(!bIsSlamming)
+                AddDrag(ref velocity.y, minSpeed.y, airDragMagic, airDragCof);
         }
 
         // Limit the velocity to the max speed
@@ -526,7 +529,7 @@ public class Huevo : MonoBehaviour
 
             velAdd *= (stateMan.bOnGround ? groundDragCof : airDragCof);
 
-            if (Mathf.Sign(velocity.x) != inHandler.Horizontal)
+            if (velocity.x != 0 && Mathf.Sign(velocity.x) != inHandler.Horizontal)
                 velAdd *= reverseAccelMod;
 
             velocity.x += velAdd;
@@ -564,10 +567,11 @@ public class Huevo : MonoBehaviour
     private void AddDrag(ref float _out, float _minSpeed, float _dragMagic, float _dragCof = 1f)
     {
         float vX = _out;
+
         // Magic be here
         vX -= vX * (_dragMagic * Mathf.Pow(_dragCof, 2));
 
-        if (Mathf.Sign(vX) != Mathf.Sign(_out) || Mathf.Abs(_out) < _minSpeed)
+        if (Mathf.Sign(vX) != Mathf.Sign(_out) || Mathf.Abs(vX) <= _minSpeed)
             _out = 0f;
         else
             _out = vX;
@@ -610,10 +614,7 @@ public class Huevo : MonoBehaviour
         }
 
         if (attachedTo != null)
-        {
-
             return;
-        }
 
         if (wallKickInputBlock != (int)Mathf.Sign(inHandler.Horizontal))
             wallKickInputBlock = 0;
