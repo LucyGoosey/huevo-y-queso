@@ -20,6 +20,7 @@ public class Attachable : MonoBehaviour
 
     public List<AttachableHuevo> attached = new List<AttachableHuevo>();
     private List<AttachableHuevo> detached = new List<AttachableHuevo>();
+    private List<Huevo> notAttached = new List<Huevo>();
 
     public float timeBeforeDetach = 0.5f;
 
@@ -36,6 +37,10 @@ public class Attachable : MonoBehaviour
 
     protected void FixedUpdate()
     {
+        for(int i = 0; i < notAttached.Count; ++i)
+            if(Attach(notAttached[i]) != null)
+                notAttached.RemoveAt(i--);
+
         for (int i = 0; i < attached.Count; ++i)
             if (attached[i].bHoldingJump && !attached[i].huevo.InHandler.Jump.bHeld)
                 attached[i].bHoldingJump = false;
@@ -44,13 +49,15 @@ public class Attachable : MonoBehaviour
     void OnTriggerEnter2D(Collider2D _coll)
     {
         if (_coll.tag == "Hand")
-            Attach(_coll.transform.parent.GetComponent<Huevo>());
+            if(Attach(_coll.transform.parent.GetComponent<Huevo>()) == null)
+                notAttached.Add(_coll.transform.parent.GetComponent<Huevo>());
     }
 
-    void OnTriggerStay2D(Collider2D _coll)
+    void OnTriggerExit2D(Collider2D _coll)
     {
         if(_coll.tag == "Hand")
-            Attach(_coll.transform.parent.GetComponent<Huevo>());
+            if(notAttached.Contains(_coll.transform.parent.GetComponent<Huevo>()))
+                notAttached.Remove(_coll.transform.parent.GetComponent<Huevo>());
     }
 
     virtual protected AttachableHuevo Attach(Huevo _h)

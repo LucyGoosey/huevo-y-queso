@@ -119,7 +119,7 @@ public class Swinger : Attachable
 
     override protected AttachableHuevo Attach(Huevo _h)
     {
-        if (_h.transform.position.y + _h.HandPos.y >= collider2D.bounds.max.y)
+        if (_h.collider2D.bounds.max.y >= collider2D.bounds.max.y)
             return null;
 
         AttachableHuevo ah = base.Attach(_h);
