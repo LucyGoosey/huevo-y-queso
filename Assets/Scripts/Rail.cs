@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class Rail : MonoBehaviour {
+public class Rail : Attachable {
 
 	// Use this for initialization
 	void Start () {

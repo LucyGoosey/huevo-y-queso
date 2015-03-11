@@ -52,7 +52,9 @@ public class Swinger : Attachable
 
         if (_sh.floatParams[2] < timeToSlide)
         {
-            l = _sh.floatParams[1] + (length - _sh.floatParams[1]) * (_sh.floatParams[2] / timeToSlide);
+            l = _sh.floatParams[1] + (length - _sh.floatParams[1]) * (_sh.floatParams[3] / length);
+
+            _sh.floatParams[3] = l;
 
             _sh.floatParams[2] += Time.deltaTime;
         }
@@ -83,7 +85,7 @@ public class Swinger : Attachable
                     _sh.floatParams[0] += sForce * Mathf.Cos(rad) * Time.deltaTime;
         }
         
-        AddDrag(ref _sh.floatParams[0], maxSpeed, minSpeed, dragMagic, dragCof);
+        AddDrag(ref _sh.floatParams[0], maxSpeed, dragMagic, dragCof);
 
         rad += (_sh.floatParams[0] * Time.deltaTime);
 
@@ -103,13 +105,12 @@ public class Swinger : Attachable
         lineRenderer.SetPosition(1, huevo.transform.position + huevo.HandPos);
     }
 
-    private void AddDrag(ref float _out, float _maxSpeed, float _minSpeed, float _dragMagic, float _dragCof = 1f)
+    private void AddDrag(ref float _out, float _maxSpeed, float _dragMagic, float _dragCof = 1f)
     {
         float vX = _out;
-        // Magic be here
-        vX -= vX * (_dragMagic * Mathf.Pow(_dragCof, 2));
+        vX -= Mathf.Sign(vX) * (_dragMagic * _dragCof);
 
-        if (Mathf.Sign(vX) != Mathf.Sign(_out) || Mathf.Abs(vX) < _minSpeed)
+        if (_out != 0 && Mathf.Sign(vX) != Mathf.Sign(_out))
             _out = 0f;
         else if (Mathf.Abs(vX) > _maxSpeed)
             _out = _maxSpeed * Mathf.Sign(vX);
@@ -126,8 +127,11 @@ public class Swinger : Attachable
 
         if (ah != null)
         {
-            ah.SetNumFloatParams(3); // 0 = angVel, 1 = posOnVine, 2 = timeOnVine
+            ah.SetNumFloatParams(4); // 0 = angVel, 1 = posOnVine, 2 = timeOnVine, 3 = curPosOnVine
+
             ah.floatParams[1] = Vector2.Distance(transform.position, ah.huevo.transform.position + ah.huevo.HandPos);
+            ah.floatParams[3] = ah.floatParams[1];
+
             Vector2 relPos = transform.position - ah.huevo.transform.position;
             Vector2 relPosPrime = transform.position - (ah.huevo.transform.position + (Vector3)ah.huevo.Velocity);
             ah.floatParams[0] = (Mathf.Atan2(relPos.y, relPosPrime.x) - Mathf.Atan2(relPos.y, relPos.x)) * length;
