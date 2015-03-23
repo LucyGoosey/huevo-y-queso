@@ -123,7 +123,7 @@ public class Mario : MonoBehaviour {
  
     void Start ()
     {
-#if UNITY_DEBUG
+#if UNITY_EDITOR
         TestMario tMario = ((GameObject)Instantiate(Resources.Load<GameObject>("TestMario"))).GetComponent<TestMario>();
         tMario.transform.position = transform.position;
         tMario.transform.parent = transform;

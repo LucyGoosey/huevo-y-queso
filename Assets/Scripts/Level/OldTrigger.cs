@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class Trigger : MonoBehaviour
+public class OldTrigger : MonoBehaviour
 {
 
     public MovinPlatform[] platforms;
@@ -12,9 +12,7 @@ public class Trigger : MonoBehaviour
             return;
 
         if (_coll.tag == "Player")
-        {
             for (int i = 0; i < platforms.Length; ++i)
                 platforms[i].bShouldMove = true;
-        }
     }
 }

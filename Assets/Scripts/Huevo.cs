@@ -38,11 +38,11 @@ public class Huevo : MonoBehaviour
     private Vector2 linecastCount = new Vector2(5, 5);
 
     private Vector2 velocity = Vector2.zero;
-    public Vector2 Velocity { get { return velocity; } }
+    public Vector2  Velocity { get { return velocity; } }
     private float   vDeltaTime = 0;
 
     private Vector2 effectiveGravity = new Vector2(0f, -24f);
-    public Vector2 EffectiveGravity { get { return effectiveGravity; } }
+    public Vector2  EffectiveGravity { get { return effectiveGravity; } }
 
     private bool    bLeftGround = false;
     private int     leftGroundForFrames = 0;
@@ -68,8 +68,6 @@ public class Huevo : MonoBehaviour
 
     private DeathBubble dBubble;
     private float   sqrDeadMaxSpeed;
-
-    public Attachable attachedTo;
 
     private bool bIsBeingSquishedHor = false;
     private bool bIsBeingSquishedVert = false;
@@ -122,7 +120,7 @@ public class Huevo : MonoBehaviour
     public float deadAccel = 30f;
     public float deadMaxSpeed = 20f;
     public float deadDragMagic = 0.033f;
-    #endregion
+    #endregion Public Variables
 
     void Start()
     {
@@ -177,23 +175,6 @@ public class Huevo : MonoBehaviour
         effectiveGravity = gravity;
     }
 
-    public void AttachToObject(Attachable _object)
-    {
-        transform.parent = _object.transform;
-        attachedTo = _object;
-        velocity = Vector2.zero;
-        inHandler.InputEnabled = true;
-    }
-
-    public void DetachFromObject()
-    {
-        if (attachedTo != null)
-        {
-            transform.parent = null;
-            attachedTo = null;
-        }
-    }
-
     #region FixedUpdate
     void FixedUpdate()
     {
@@ -206,11 +187,6 @@ public class Huevo : MonoBehaviour
     void FixedUpdateAlive()
     {            
         CollisionCheck();
-
-        if (attachedTo != null)
-        {
-            return;
-        }
 
         rigidbody2D.MovePosition(transform.position + (Vector3)(velocity * vDeltaTime));
         worldHitBox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
@@ -375,7 +351,7 @@ public class Huevo : MonoBehaviour
 
         if (_xDir != 0 && _yDir != 0 || _xDir == 0 && _yDir == 0)
         {
-            #if UNITY_DEBUG
+            #if UNITY_EDITOR
             Debug.LogWarning("Invalid parameters passed to Huevo.GroundCheck().\nOnly x XOR y can have a value != 0.");
             #endif
             return groundHit;
@@ -408,7 +384,7 @@ public class Huevo : MonoBehaviour
 
             groundHit = Physics2D.Linecast(s, e, 1 << LayerMask.NameToLayer("Ground"));
 
-            #if UNITY_DEBUG
+            #if UNITY_EDITOR
             if (groundHit)
             {
                 Debug.DrawLine(s, e, Color.red);
@@ -612,12 +588,6 @@ public class Huevo : MonoBehaviour
         if(inHandler.Bubble.bDown)
         {
             OnKill();
-            return;
-        }
-
-        if (attachedTo != null)
-        {
-
             return;
         }
 

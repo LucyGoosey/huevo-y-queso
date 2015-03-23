@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-class InputHandler : MonoBehaviour
+public class InputHandler : MonoBehaviour
 {
     public class Key
     {
@@ -47,7 +47,7 @@ class InputHandler : MonoBehaviour
         HandleAxis("Dash_" + playerNum, ref dash);
 
         #region Debug
-#if UNITY_DEBUG
+#if UNITY_EDITOR
         //LogKey("Jump", jump);
         //LogKey("Slam", jump);
 
@@ -87,7 +87,7 @@ class InputHandler : MonoBehaviour
     }
 
     #region Debug
-#if UNITY_DEBUG
+#if UNITY_EDITOR
     private void LogKey(string _keyName, Key _key)
     {
         Debug.Log(_keyName + ":");
