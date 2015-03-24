@@ -1,51 +1,21 @@
-# Temporary file ignores
-/Library
-/Library/*
-/obj
-/objects
-/refs
-/Temp
-*.csproj
-*.pidb
-*.sln
-*.userprefs
-*.suo
+# Ignore everything but the whitelist
+*
 
-# Build ignores
-/bin
-/bin/*
-/*_Data
-/*_Data/*
-*.exe
+# White list
+!.gitignore
+!*.cs
+!*.py
+!*.txt
+!*.conf
 
-# Asset Ignores
-*.png
-*.psd
-*.tga
-*.tif
-*.fbx
-*.wav
-*.mp3
-*.flac
-*.ogg
-*.obj
-*.db
-*.mtl
-*.max
+# White list any subdirectories
+!*/
 
-# Unity ignores
-*.asset
-*.unity
-*.prefab
-*.controller
-*.anim
-*.meta
-/ProjectSettings/*
-
-# Python ignores
-*.py
-*.xz
-*.7z
-*.tar
-*.zip
-*.rar
+# But ensure these subdirectories ignored
+Library/
+Temp/
+bin/
+ProjectSettings/
+*_Data/
+*-*-*_*/
+obj/
