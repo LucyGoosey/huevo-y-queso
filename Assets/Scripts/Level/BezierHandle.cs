@@ -1,18 +1,15 @@
-﻿using UnityEngine;
+﻿#if UNITY_EDITOR
 
-#if UNITY_EDITOR
+using UnityEngine;
 using UnityEditor;
 
 [ExecuteInEditMode]
-#endif
-
 public class BezierHandle : MonoBehaviour {
 
-    public BezierPoint point;
+    public BezierAnchor point;
 
     public BezierHandle connectedHandle;
 
-#if UNITY_EDITOR
     private Vector3 lastKnownPos;
 
     void Start()
@@ -24,7 +21,10 @@ public class BezierHandle : MonoBehaviour {
 	void Update ()
     {
         if (point == null)
+        {
             DestroyImmediate(gameObject);
+            return;
+        }
 
         if (transform.position != lastKnownPos)
             MoveConnectedHandle();
@@ -59,5 +59,5 @@ public class BezierHandle : MonoBehaviour {
     {
         lastKnownPos = transform.position;
     }
-#endif
 }
+#endif

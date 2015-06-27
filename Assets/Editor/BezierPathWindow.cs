@@ -6,19 +6,22 @@ using UnityEditor;
 [ExecuteInEditMode]
 #endif
 
-public class BezierPathWindow : EditorWindow {
-
-    public static bool bDrawHandleLines = true;
-
+public class BezierPathWindow : EditorWindow 
+{
     public bool bIsPlacing = false;
 
-    private BezierPoint lastPoint = null;
-    private BezierPoint curPoint = null;
+    private BezierPath path = null;
 
-    [MenuItem("Window/Bézier Path Creator")]
-    public static void ShowWindow()
+    private uint numPoints = 0;
+
+    private BezierAnchor lastPoint = null;
+    private BezierAnchor curPoint = null;
+
+    public void Setup(BezierPath _path, uint _numPoints, BezierAnchor _lastPoint)
     {
-        EditorWindow.GetWindow<BezierPathWindow>();
+        path = _path;
+        numPoints = _numPoints;
+        lastPoint = _lastPoint;
     }
 
     void OnEnable()
@@ -42,34 +45,28 @@ public class BezierPathWindow : EditorWindow {
     void OnSceneGUI(SceneView sceneView)
     {
         if (bIsPlacing)
-            HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive));
-        else
-            return;
+            HandlePlacement(sceneView);
+    }
+
+    #region Placment
+    private void HandlePlacement(SceneView _sceneView)
+    {
+        HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive));
 
         Event cur = Event.current;
 
         if (cur.button != 0)
             return;
 
-        switch(cur.type)
+        switch (cur.type)
         {
             case EventType.MouseDown:
-                GameObject gObject = new GameObject("BézierPoint", typeof(BezierPoint));
-                gObject.transform.position = GetClickPos(cur.mousePosition, sceneView);
-
-                curPoint = gObject.GetComponent<BezierPoint>();
-                AddHandles(curPoint);
-
+                PlaceAnchor(_sceneView, cur.mousePosition);
                 cur.Use();
                 break;
 
             case EventType.MouseDrag:
-                curPoint.transform.position = GetClickPos(cur.mousePosition, sceneView);
-
-                DestroyImmediate(curPoint.handleA.gameObject);
-                DestroyImmediate(lastPoint.handleB.gameObject);
-
-                AddHandles(curPoint);
+                curPoint.handleA.transform.position = GetClickPos(cur.mousePosition, _sceneView);
                 break;
 
             case EventType.MouseUp:
@@ -82,6 +79,24 @@ public class BezierPathWindow : EditorWindow {
         }
     }
 
+    private void PlaceAnchor(SceneView _sceneView, Vector2 _mousePosition)
+    {
+        curPoint = new GameObject(string.Format("Bézier Point {0}", numPoints), typeof(BezierAnchor))
+                        .GetComponent<BezierAnchor>();
+
+        if (numPoints == 0)
+            path.StartPoint = curPoint;
+
+        ++numPoints;
+
+        curPoint.transform.position = GetClickPos(_mousePosition, _sceneView);
+        curPoint.transform.parent = path.transform;
+
+        curPoint.bLocked = curPoint.bDistanceLocked = true;
+        curPoint.AddHandles(lastPoint);
+    }
+    #endregion
+
     Vector3 GetClickPos(Vector2 mousePos, SceneView sceneView)
     {
         mousePos.y = sceneView.camera.pixelHeight - mousePos.y;
@@ -92,45 +107,15 @@ public class BezierPathWindow : EditorWindow {
         return worldPos;
     }
 
-    void AddHandles(BezierPoint _bPoint)
-    {
-        GameObject newA = new GameObject("BézierHandle A", typeof(BezierHandle));
-        newA.transform.position = _bPoint.transform.position;
-        newA.transform.parent = _bPoint.transform;
-
-        BezierHandle handA = newA.GetComponent<BezierHandle>();
-        handA.point = _bPoint;
-        _bPoint.handleA = handA;
-
-        if (lastPoint != null)
-        {
-            GameObject lastB = new GameObject("BézierHandle B", typeof(BezierHandle));
-            lastB.transform.position = lastPoint.handleA.transform.position;
-            lastB.transform.parent = _bPoint.transform;
-
-            BezierHandle handB = lastB.GetComponent<BezierHandle>();
-            handB.point = _bPoint;
-            lastPoint.handleB = handB;
-
-            handA.connectedHandle = handB;
-            handB.connectedHandle = handA;
-
-            handB.MoveConnectedHandle();
-
-            lastPoint.next = _bPoint;
-            _bPoint.prev = lastPoint;
-        }
-    }
-
     void LinkToStart()
     {
-        BezierPoint startPoint = lastPoint;
+        BezierAnchor startPoint = lastPoint;
         while (startPoint.prev != null)
             startPoint = startPoint.prev;
-
+        
         lastPoint.next = curPoint;
 
-        GameObject newB = new GameObject("BezierHandle B", typeof(BezierHandle));
+        GameObject newB = new GameObject("Bézier Handle B", typeof(BezierHandle));
         newB.transform.position = lastPoint.handleA.transform.position;
         newB.transform.parent = startPoint.transform;
 
