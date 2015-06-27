@@ -2,6 +2,7 @@
 
 #if UNITY_EDITOR
 using UnityEditor;
+
 [ExecuteInEditMode]
 #endif
 
@@ -17,7 +18,7 @@ public class BezierPoint : MonoBehaviour
     public BezierHandle handleB;
 
     #region Editor
-#if UNITY_EDITOR  	
+#if UNITY_EDITOR
 	void Update ()
     {
         if (!bLocked)

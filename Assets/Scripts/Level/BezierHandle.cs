@@ -1,9 +1,11 @@
 ﻿using UnityEngine;
+
 #if UNITY_EDITOR
 using UnityEditor;
 
 [ExecuteInEditMode]
 #endif
+
 public class BezierHandle : MonoBehaviour {
 
     public BezierPoint point;

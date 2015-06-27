@@ -2,10 +2,11 @@
 
 #if UNITY_EDITOR
 using UnityEditor;
+
 [ExecuteInEditMode]
 #endif
 
-public class BezierPathCreator : EditorWindow {
+public class BezierPathWindow : EditorWindow {
 
     public static bool bDrawHandleLines = true;
 
@@ -17,7 +18,7 @@ public class BezierPathCreator : EditorWindow {
     [MenuItem("Window/Bézier Path Creator")]
     public static void ShowWindow()
     {
-        EditorWindow.GetWindow<BezierPathCreator>();
+        EditorWindow.GetWindow<BezierPathWindow>();
     }
 
     void OnEnable()

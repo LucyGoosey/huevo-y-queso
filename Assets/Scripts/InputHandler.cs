@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-class InputHandler : MonoBehaviour
+public class InputHandler : MonoBehaviour
 {
     public class Key
     {

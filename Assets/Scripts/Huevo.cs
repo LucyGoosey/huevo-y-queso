@@ -69,8 +69,6 @@ public class Huevo : MonoBehaviour
     private DeathBubble dBubble;
     private float   sqrDeadMaxSpeed;
 
-    public Attachable attachedTo;
-
     private bool bIsBeingSquishedHor = false;
     private bool bIsBeingSquishedVert = false;
     #endregion
@@ -177,23 +175,6 @@ public class Huevo : MonoBehaviour
         effectiveGravity = gravity;
     }
 
-    public void AttachToObject(Attachable _object)
-    {
-        transform.parent = _object.transform;
-        attachedTo = _object;
-        velocity = Vector2.zero;
-        inHandler.InputEnabled = true;
-    }
-
-    public void DetachFromObject()
-    {
-        if (attachedTo != null)
-        {
-            transform.parent = null;
-            attachedTo = null;
-        }
-    }
-
     #region FixedUpdate
     void FixedUpdate()
     {
@@ -206,11 +187,6 @@ public class Huevo : MonoBehaviour
     void FixedUpdateAlive()
     {            
         CollisionCheck();
-
-        if (attachedTo != null)
-        {
-            return;
-        }
 
         rigidbody2D.MovePosition(transform.position + (Vector3)(velocity * vDeltaTime));
         worldHitBox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
@@ -612,12 +588,6 @@ public class Huevo : MonoBehaviour
         if(inHandler.Bubble.bDown)
         {
             OnKill();
-            return;
-        }
-
-        if (attachedTo != null)
-        {
-
             return;
         }
 
