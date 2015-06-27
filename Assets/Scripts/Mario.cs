@@ -82,7 +82,6 @@ public class Mario : MonoBehaviour {
     public float slideDragCof = 0.75f;
     public float minSlideSpeed = 0.75f;
     private float slideTime = 0f;
-    private float slideVel = 0f;
     private bool bIsCrouching = false;
     private bool bIsSliding = false;
     public bool bFloatWhileSliding = false;
@@ -565,7 +564,6 @@ public class Mario : MonoBehaviour {
                 && Mathf.Abs(rigidbody2D.velocity.x) >= maxSpeed.x * minSlideSpeed)
             {
                 bIsSliding = true;
-                slideVel = rigidbody2D.velocity.x;
             }
  
             if (!bIsSliding)

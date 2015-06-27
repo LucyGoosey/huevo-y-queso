@@ -13,12 +13,12 @@ public class Huevo : MonoBehaviour
 {
     private class StateManager
     {
-        public bool bIsAlive = false;
-        public bool bOnGround = false;
-        public bool bNearWall = false;
-        public bool bHangingToWall = false;
-        public bool bIsDashing = false;
-        public bool bIsCrouching = false;
+        public bool bIsAlive        = false;
+        public bool bOnGround       = false;
+        public bool bNearWall       = false;
+        public bool bHangingToWall  = false;
+        public bool bIsDashing      = false;
+        public bool bIsCrouching    = false;
     }
 
     #region Private variables
@@ -31,14 +31,14 @@ public class Huevo : MonoBehaviour
     public Vector3 HandPos { get { return handPos.localPosition; } }
 
     private InputHandler inHandler;
-    public InputHandler InHandler { get { return inHandler; } }
+    public InputHandler  InHandler { get { return inHandler; } }
     private StateManager stateMan = new StateManager();
 
     private float   groundDistanceCheck = 0.1f;
     private Vector2 linecastCount = new Vector2(5, 5);
 
     private Vector2 velocity = Vector2.zero;
-    public Vector2 Velocity { get { return velocity; } }
+    public Vector2  Velocity { get { return velocity; } }
     private float   vDeltaTime = 0;
 
     private Vector2 effectiveGravity = new Vector2(0f, -24f);
@@ -58,7 +58,7 @@ public class Huevo : MonoBehaviour
     private float   timeOnWall = 0f;
 
     private int     dashCombo = 0;
-    private float   maxDashTime;
+    private float   maxDashTime;        // Calculated at start to be dashPauseTime + dashMotionTime + dashOverflowTime
     private float   timeInDash = 0f;
     private float   dashDir = 0f;
 
@@ -68,8 +68,6 @@ public class Huevo : MonoBehaviour
 
     private DeathBubble dBubble;
     private float   sqrDeadMaxSpeed;
-
-    public Attachable attachedTo;
 
     private bool bIsBeingSquishedHor = false;
     private bool bIsBeingSquishedVert = false;
@@ -177,23 +175,6 @@ public class Huevo : MonoBehaviour
         effectiveGravity = gravity;
     }
 
-    public void AttachToObject(Attachable _object)
-    {
-        transform.parent = _object.transform;
-        attachedTo = _object;
-        velocity = Vector2.zero;
-        inHandler.InputEnabled = true;
-    }
-
-    public void DetachFromObject()
-    {
-        if (attachedTo != null)
-        {
-            transform.parent = null;
-            attachedTo = null;
-        }
-    }
-
     #region FixedUpdate
     void FixedUpdate()
     {
@@ -206,11 +187,6 @@ public class Huevo : MonoBehaviour
     void FixedUpdateAlive()
     {            
         CollisionCheck();
-
-        if (attachedTo != null)
-        {
-            return;
-        }
 
         rigidbody2D.MovePosition(transform.position + (Vector3)(velocity * vDeltaTime));
         worldHitBox.center = transform.position + new Vector3(0f, (hitboxWidthHeight.y / 2f));
@@ -612,12 +588,6 @@ public class Huevo : MonoBehaviour
         if(inHandler.Bubble.bDown)
         {
             OnKill();
-            return;
-        }
-
-        if (attachedTo != null)
-        {
-
             return;
         }
 
