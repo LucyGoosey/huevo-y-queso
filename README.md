@@ -11,7 +11,7 @@ Most of the functionality is within Assets/Scripts/Huevo.cs, in the future it wo
 ### Prerequisites
 
 Unity3D, originally made with 4.6 but likely works with newer versions.
-Python 3.x if you wise to use the python utilities.
+Python 3.x if you wish to use the python utilities.
 
 ## License
 
